@@ -1,4 +1,5 @@
-class User{
+//class for making a user
+export class User{
     #username;
     #firstname;
     #lastname;

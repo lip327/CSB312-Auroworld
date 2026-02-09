@@ -8,7 +8,7 @@ function Posts(){
         navigate("/courses")
     }
     function signoutButton(){
-        navigate("/login")
+        navigate("/")
     }
     return(
         <div id="homepage">

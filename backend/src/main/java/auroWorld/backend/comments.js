@@ -1,19 +1,20 @@
-class CommentData{
+//class for making comment
+export class CommentData{
     #username;
     #firstname;
     #lastname;
-    #messageId;
+    #postId;
     #commentId;
     #comment;
     #upvote;
     #downvote;
     #createdAt;
     constructor(username, firstname, lastname, 
-        messageId, commentId, comment, upvote,downvote){
+        postId, commentId, comment, upvote,downvote){
         this.#username=username;
         this.#firstname=firstname;
         this.#lastname=lastname;
-        this.#messageId=messageId;
+        this.#postId=postId;
         this.#commentId=commentId;
         this.#comment=comment;
         this.#upvote=upvote;
@@ -29,8 +30,8 @@ class CommentData{
     getLastname(){
         return this.#lastname;
     }
-    getMessageId(){
-        return this.#messageId;
+    getPostId(){
+        return this.#postId;
     }
     getCommentId(){
         return this.#commentId;
