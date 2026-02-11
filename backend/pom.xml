@@ -2,35 +2,128 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>edu.lehigh.cse216.sml3.backend</groupId>
+  <groupId>auroworld.backend</groupId>
   <artifactId>backend</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
   <name>backend</name>
   <url>http://maven.apache.org</url>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
   </properties>
+
   <build>
+
     <plugins>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.4.1</version>
         <configuration>
-          <mainClass>auroWorld.backend.App</mainClass>
+          <mainClass>auroworld.backend.App</mainClass>
         </configuration>
       </plugin>
+      <plugin>
+              <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                  <execution>
+                    <phase>package</phase>
+                      <goals>
+                        <goal>single</goal>
+                      </goals>
+                  </execution>
+                </executions>
+              <configuration>
+                <descriptorRefs>
+                  <descriptorRef>jar-with-dependencies</descriptorRef>
+                </descriptorRefs>
+                <archive>
+                  <manifest>
+                    <mainClass>auroworld.backend.App</mainClass>
+                  </manifest>
+                </archive>
+              </configuration>
+            </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.4.1</version>
+            <configuration>
+              <reportOutputDirectory>${project.basedir}/docs</reportOutputDirectory>
+              <destDir>javadoc</destDir>
+              <source>17</source>
+            </configuration>
+          </plugin>
     </plugins>
+
   </build>
+
   <dependencies>
+    <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.11.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.apis</groupId>
+        <artifactId>google-api-services-drive</artifactId>
+        <version>v3-rev20250910-2.0.0</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.google.oauth-client</groupId>
+          <artifactId>google-oauth-client-jetty</artifactId>
+          <version>1.34.1</version>
+      </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>2.30.0</version>
+    </dependency>
+
+    <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-jackson2</artifactId>
+        <version>1.43.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.3</version>
+    </dependency>
+
+    <dependency>
+        <groupId>io.javalin</groupId>
+        <artifactId>javalin-testtools</artifactId>
+        <version>6.3.0</version>
+        <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>3.8.1</version>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>java-8-api</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+      </properties>
+    </profile>
+  </profiles>
+
 </project>

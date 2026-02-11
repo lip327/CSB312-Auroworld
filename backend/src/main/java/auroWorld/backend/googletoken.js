@@ -1,14 +1,4 @@
-/** JSON returned by Google's tokeninfo endpoint (subset) */
-    // private static final class GoogleTokenInfo {
-    //     public String aud;
-    //     public String iss;
-    //     public String email;
-    //     public String hd;
-    //     public String sub;
-    //     public String given_name;
-    //     public String family_name;
-    //     public String email_verified;
-    // }
+
 //class for google token for oauth
 export class GoogleToken{
 
