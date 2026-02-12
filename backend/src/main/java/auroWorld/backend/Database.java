@@ -116,11 +116,14 @@ public class Database{
         ArrayList<MessageData> res = new ArrayList<>();
 
         String sql =
-            "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
-            "       m.upvote, m.downvote " +
-            "FROM messages m " +
-            "LEFT JOIN \"Users\" u ON m.\"username\" = u.\"username\" " +
-            "ORDER BY m.msg_id";
+            "SELECT msg_id, username, subject, message, upvote, downvote " +
+            "FROM messages " +
+            "ORDER BY msg_id";
+            // "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
+            // "       m.upvote, m.downvote " +
+            // "FROM messages m " + 
+            // "LEFT JOIN \"Users\" u ON m.\"username\" = u.\"username\" " +
+            // "ORDER BY m.msg_id";
 
         try (Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql);

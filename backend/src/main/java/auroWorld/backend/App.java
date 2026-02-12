@@ -157,6 +157,11 @@ public class App
                     files.location  = Location.EXTERNAL;
                 }
             });
+            config.bundledPlugins.enableCors(cors -> {
+                cors.addRule(it -> {
+                    it.anyHost();
+                });
+            });
         });
         app.post("/auth/login", ctx -> {
             System.out.println("LOGIN: /auth/login hit");
