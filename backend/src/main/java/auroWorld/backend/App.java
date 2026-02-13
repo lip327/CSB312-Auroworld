@@ -1,4 +1,4 @@
-package auroworld.backend;
+package auroWorld.backend;
 
 /**
  * Hello world!
@@ -219,6 +219,8 @@ public class App
 
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
+
+
         app.get("/messages", ctx -> {
             // Require login
             // SessionData session = requireSession(ctx);
@@ -241,7 +243,111 @@ public class App
 
             ctx.result(gson.toJson(resp));
         });
+
+    
+        app.get("/messages/{msg_id}", ctx -> {
+            // // Require login
+            // SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
+            //String cacheKey = "message_" + msgId;
+
+            //String cached = (String)cache.get(cacheKey);
+
+
+            Database.MessageData msg = db.selectMessage(msgId);
+
+            StructuredResponse resp = (msg == null)
+                    ? new StructuredResponse("error", "Message not found", null)
+                    : new StructuredResponse("ok", null, msg);
+
+            String json = gson.toJson(resp);
+
+            // if (msg != null) {
+            //     cache.set(cacheKey, 3600, json);
+            // }
+
+            ctx.result(json);
+        });
+
+
+        app.get("/messages/{id}/comments", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            // SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            int msgId = Integer.parseInt(ctx.pathParam("id"));
+
+            // String cacheKey="messages_"+msgId+"_comments";
+            // String cachedJson = (String) cache.get(cacheKey);
+
+            // if (cachedJson != null) {
+            //     System.out.println("CACHE HIT: messages-"+msgId+"-comments");
+            //     ctx.result(cachedJson);
+            //     return;
+            // }
+
+            ArrayList<Database.CommentData> comments = db.selectComments(msgId);
+
+            StructuredResponse resp = new StructuredResponse("ok", null, comments);
+
+            String json = gson.toJson(resp);
+            // cache.set(cacheKey, 30, json);
+            ctx.result(json);
+
+            ctx.result(gson.toJson(resp));
+        });
+
+        app.get("/profile/{userId}", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            // you could require auth here; we'll do it to line up with "app use requires auth"
+            //SessionData session = requireSession(ctx);
+            // if (session == null) return;   // requireSession already sends error JSON
+            //String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            String targetId = ctx.pathParam("userId");
+
+            //String cacheKey = "public_profile_" + targetId;
+            // String cachedJson = (String) cache.get(cacheKey);
+            // if (cachedJson != null) {
+            //     System.out.println("CACHE HIT: profile-"+targetId);
+            //     ctx.result(cachedJson);
+            //     return;
+            // }
+
+            Database.ProfilePublicData profile = db.selectPublicProfile(targetId);
+
+            StructuredResponse resp = (profile == null)
+                    ? new StructuredResponse("error", "profile not found", null)
+                    : new StructuredResponse("ok", null, profile);
+            
+            String json = gson.toJson(resp);
+            //cache.set(cacheKey, 300, json);
+
+            ctx.result(gson.toJson(resp));
+        });
+
+
         app.start(8080);
-    }
+    }  
     
 }
