@@ -1,10 +1,14 @@
-package auroworld.backend;
+package auroWorld.backend;
 
 
 import java.sql.*;
 import java.util.*;
 
 public class Database{
+
+    /* -------------------------------------------------------------
+     *                       DATA CLASSES
+     * ------------------------------------------------------------- */
     //message class
     public static final class MessageData {
         public final int msgId;
@@ -30,6 +34,52 @@ public class Database{
             // this.valid = valid;
             // this.firstName = firstName;
             // this.lastName = lastName;
+        }
+    }
+
+    public static final class CommentData {
+        public final int commentId;
+        public final int msgId;
+        public final String userId;
+        public final String comment;
+        //public final int upvote;
+        //public final int downvote;
+        //public final Timestamp createdAt;
+        public final boolean valid;
+
+        //public final String userFirst;
+       // public final String userLast;
+
+        public CommentData(int commentId, int msgId, String userId, String comment, boolean valid){
+                           //int upvote, int downvote, Timestamp createdAt, boolean valid,
+                           //String userFirst, String userLast) {
+            this.commentId = commentId;
+            this.msgId = msgId;
+            this.userId = userId;
+            this.comment = comment;
+            //this.upvote = upvote;
+            //this.downvote = downvote;
+            //this.createdAt = createdAt;
+            this.valid = valid;
+            //this.userFirst = userFirst;
+            //this.userLast = userLast;
+        }
+    }
+
+    public static final class ProfilePublicData {
+        public final String userId;
+        public final String firstName;
+        public final String lastName;
+        public final String email;
+        public final String note;
+
+        public ProfilePublicData(String userId, String firstName, String lastName,
+                                 String email, String note) {
+            this.userId = userId;
+            this.firstName = firstName;
+            this.lastName = lastName;
+            this.email = email;
+            this.note = note;
         }
     }
 
@@ -90,7 +140,7 @@ public class Database{
 
     public int ensureUserWithEmail(String username, String first, String last, String email) {
         String sql =
-                "INSERT INTO \"Users\" (\"username\", first_name, last_name, email, role) " +
+                "INSERT INTO \"users\" (\"username\", first_name, last_name, email, role) " +
                 "VALUES (?, ?, ?, ?, NOW(), true) " +
                 "ON CONFLICT (\"userID\") DO UPDATE SET " +
                 "first_name = EXCLUDED.first_name, " +
@@ -148,5 +198,108 @@ public class Database{
         return res;
     }
 
+    public MessageData selectMessage(int msg_Id) {
+        String sql =
+            "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
+            "       m.upvote, m.downvote, " +
+            "       u.firstname, u.lastname " +
+            "FROM messages m " +
+            "LEFT JOIN \"users\" u ON m.\"username\" = u.\"username\" " +
+            "WHERE m.msg_id=?";
 
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, msg_Id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+
+                return new MessageData(
+                        rs.getInt("msg_id"),
+                        rs.getString("username"),
+                        rs.getString("subject"),
+                        rs.getString("message"),
+                        rs.getInt("upvote"),
+                        rs.getInt("downvote")
+                        //rs.getTimestamp("created_at"),
+                        //rs.getBoolean("valid"),
+                        //rs.getString("first_name"),
+                        //rs.getString("last_name")
+                );
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public ArrayList<CommentData> selectComments(int msgId) {
+        ArrayList<CommentData> res = new ArrayList<>();
+
+        String sql =
+            "SELECT c.comment_id, c.msg_id, c.\"username\", c.comment,c.valid " +
+            //"       c.created_at,  u.first_name, u.last_name " +
+            "FROM comments c " +
+            "JOIN \"users\" u ON c.\"username\" = u.\"username\" " +
+            "WHERE c.msg_id=? ORDER BY c.comment_id";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, msgId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    res.add(new CommentData(
+                            rs.getInt("comment_id"),
+                            rs.getInt("msg_id"),
+                            rs.getString("username"),
+                            rs.getString("comment"),
+                            //0, // upvote placeholder
+                            //0, // downvote placeholder
+                            //rs.getTimestamp("created_at"),
+                            rs.getBoolean("valid")
+                            //rs.getString("first_name"),
+                            //rs.getString("last_name")
+                    ));
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
+    public ProfilePublicData selectPublicProfile(String userId) {
+        String sql =
+                "SELECT \"username\", firstname, lastname, email, note " +
+                "FROM \"users\" WHERE \"username\"=?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+
+                return new ProfilePublicData(
+                        rs.getString("username"),
+                        rs.getString("firstname"),
+                        rs.getString("lastname"),
+                        rs.getString("email"),
+                        rs.getString("note")
+                );
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    
 }
