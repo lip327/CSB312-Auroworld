@@ -61,7 +61,7 @@ public class App
             return SESSIONS.get(token);
         }
     }
-    private static final class LoginRequest {
+    public static final class LoginRequest {
         public String idToken;
     }
     //class for grabbing infromation from google account you use to sign in 
@@ -160,19 +160,22 @@ public class App
             config.bundledPlugins.enableCors(cors -> {
                 cors.addRule(it -> {
                     it.anyHost();
+                    // it.allowMethod(io.javalin.http.HttpMethod.POST);
                 });
             });
         });
         app.post("/auth/login", ctx -> {
-            System.out.println("LOGIN: /auth/login hit");
 
             ctx.status(200);
             ctx.contentType("application/json");
-
+            System.out.println("ctx bdoy : "+ctx.body());
             LoginRequest lr = gson.fromJson(ctx.body(), LoginRequest.class);
             System.out.println("LOGIN: Parsed body, idToken present? " + (lr != null && lr.idToken != null));
 
             if (lr == null || lr.idToken == null) {
+                System.out.println("you cant login");
+                System.out.println(lr);
+                System.out.println(lr.idToken);
                 ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missing idToken", null)));
                 return;
@@ -188,6 +191,9 @@ public class App
                         "error", "invalid or unauthorized token", null)));
                 return;
             }
+            // console.log(info.sub);
+            // console.log(info.given_name);
+            // console.log(info.family_name);
 
             // Determine if this user is admin (optional)
             boolean isAdmin = false;
@@ -222,8 +228,8 @@ public class App
         app.get("/messages", ctx -> {
             // Require login
             // SessionData session = requireSession(ctx);
-            // // if (session == null) return;   // requireSession already sends error JSON
-            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = ctx.header("X-Session-Token").toString();
             // if(userId==null){
             //     return;
             // }

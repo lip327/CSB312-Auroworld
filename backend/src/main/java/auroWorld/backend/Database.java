@@ -90,11 +90,11 @@ public class Database{
 
     public int ensureUserWithEmail(String username, String first, String last, String email) {
         String sql =
-                "INSERT INTO \"Users\" (\"username\", first_name, last_name, email, role) " +
-                "VALUES (?, ?, ?, ?, NOW(), true) " +
+                "INSERT INTO \"users\" (\"username\", firstname, lastname, email, role) " +
+                "VALUES (?, ?, ?, ?, NULL) " +
                 "ON CONFLICT (\"userID\") DO UPDATE SET " +
-                "first_name = EXCLUDED.first_name, " +
-                "last_name = EXCLUDED.last_name, " +
+                "firstname = EXCLUDED.firstname, " +
+                "lastname = EXCLUDED.lastname, " +
                 "email = EXCLUDED.email";
 
         try (Connection conn = getConnection();
