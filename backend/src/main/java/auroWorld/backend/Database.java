@@ -235,6 +235,57 @@ public class Database{
         }
     }
 
+    // insert a new message, return msg_id 
+    public int insertMessage(String userId, String subject, String message) {
+        String sql =
+                "INSERT INTO messages (username, subject, message, upvote, downvote) " +
+                "VALUES (?, ?, ?, 0, 0) " +
+                "RETURNING msg_id";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, userId);
+            ps.setString(2, subject);
+            ps.setString(3, message);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt("msg_id");
+                return -1;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+
+    //insert a new comment and return comment_id
+    public int insertComment(int msgId, String userId, String comment) {
+        String sql =
+            "INSERT INTO comments (msg_id, username, comment, valid) " +
+            "VALUES (?, ?, ?, true) RETURNING comment_id";
+
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, msgId);
+            ps.setString(2, userId);
+            ps.setString(3, comment);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt("comment_id");
+                return -1;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+
     public ArrayList<CommentData> selectComments(int msgId) {
         ArrayList<CommentData> res = new ArrayList<>();
 

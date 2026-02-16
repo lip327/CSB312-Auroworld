@@ -75,6 +75,19 @@ public class App
         public String family_name;
         public String email_verified;
     }
+
+    //body class for creating a new post/message
+    private static final class CreateMessageRequest {
+        public String subject;
+        public String message;
+    }   
+
+    //class for pulling comment body data from frontend
+    private static final class CreateCommentRequest {
+        public String comment;
+    }
+
+
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
         String token = ctx.header("X-Session-Token");
@@ -242,6 +255,80 @@ public class App
             );
 
             ctx.result(gson.toJson(resp));
+        });
+
+        app.post("/messages", ctx -> {
+            SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            ctx.contentType("application/json");
+
+            CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+
+            if (req == null || req.subject == null || req.message == null ||
+                req.subject.trim().isEmpty() || req.message.trim().isEmpty()) {
+
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing subject or message", null)));
+                return;
+            }
+
+            int newId = db.insertMessage(session.userId, req.subject.trim(), req.message.trim());
+
+            if (newId < 0) {
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "failed to create message", null)));
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("msgId", newId);
+
+            ctx.status(201);
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+        });
+
+
+
+        app.post("/messages/{id}/comments", ctx -> {
+            // // Require login
+            SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            if (session == null) return;
+
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("id"));
+
+            CreateCommentRequest req = gson.fromJson(ctx.body(), CreateCommentRequest.class);
+
+            if (req == null || req.comment == null || req.comment.trim().isEmpty()) {
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing comment", null)));
+                return;
+            }
+
+            int newId = db.insertComment(msgId, session.userId, req.comment.trim());
+
+            if (newId < 0) {
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "failed to create comment", null)));
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("commentId", newId);
+
+            ctx.status(201);
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
 
     
