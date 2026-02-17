@@ -1,4 +1,4 @@
-package auroworld.backend;
+package auroWorld.backend;
 
 /**
  * Hello world!
@@ -75,6 +75,19 @@ public class App
         public String family_name;
         public String email_verified;
     }
+
+    //body class for creating a new post/message
+    private static final class CreateMessageRequest {
+        public String subject;
+        public String message;
+    }   
+
+    //class for pulling comment body data from frontend
+    private static final class CreateCommentRequest {
+        public String comment;
+    }
+
+
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
         String token = ctx.header("X-Session-Token");
@@ -204,7 +217,8 @@ public class App
             }
 
             // Ensure user exists in DB (with email)
-            db.ensureUserWithEmail(info.sub, info.given_name, info.family_name, info.email);
+            db.ensureUserWithEmail("Tester", info.given_name, info.family_name, info.email);
+            // db.ensureUserWithEmail(info.sub, info.given_name, info.family_name, info.email);
 
             // Create server-side session
             SessionData sd = new SessionData(
@@ -218,13 +232,15 @@ public class App
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("sessionToken", sessionToken);
-            payload.put("userId", info.sub);
+            payload.put("username", info.sub);
             payload.put("email", info.email);
             payload.put("firstName", info.given_name);
             payload.put("lastName", info.family_name);
 
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
+
+
         app.get("/messages", ctx -> {
             // Require login
             // SessionData session = requireSession(ctx);
@@ -247,7 +263,186 @@ public class App
 
             ctx.result(gson.toJson(resp));
         });
+
+        app.post("/messages", ctx -> {
+            SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            ctx.contentType("application/json");
+
+            CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+
+            if (req == null || req.subject == null || req.message == null ||
+                req.subject.trim().isEmpty() || req.message.trim().isEmpty()) {
+
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing subject or message", null)));
+                return;
+            }
+            int newId = db.insertMessage("Tester", req.subject.trim(), req.message.trim());
+
+            // int newId = db.insertMessage(session.userId, req.subject.trim(), req.message.trim());
+
+            if (newId < 0) {
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "failed to create message", null)));
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("msgId", newId);
+
+            ctx.status(201);
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+        });
+
+
+
+        app.post("/messages/{id}/comments", ctx -> {
+            // // Require login
+            SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            if (session == null) return;
+
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("id"));
+
+            CreateCommentRequest req = gson.fromJson(ctx.body(), CreateCommentRequest.class);
+
+            if (req == null || req.comment == null || req.comment.trim().isEmpty()) {
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing comment", null)));
+                return;
+            }
+
+            int newId = db.insertComment(msgId, session.userId, req.comment.trim());
+
+            if (newId < 0) {
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "failed to create comment", null)));
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("commentId", newId);
+
+            ctx.status(201);
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+        });
+
+    
+        app.get("/messages/{msg_id}", ctx -> {
+            // // Require login
+            // SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
+            //String cacheKey = "message_" + msgId;
+
+            //String cached = (String)cache.get(cacheKey);
+
+
+            Database.MessageData msg = db.selectMessage(msgId);
+
+            StructuredResponse resp = (msg == null)
+                    ? new StructuredResponse("error", "Message not found", null)
+                    : new StructuredResponse("ok", null, msg);
+
+            String json = gson.toJson(resp);
+
+            // if (msg != null) {
+            //     cache.set(cacheKey, 3600, json);
+            // }
+
+            ctx.result(json);
+        });
+
+
+        app.get("/messages/{id}/comments", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            // SessionData session = requireSession(ctx);
+            // // if (session == null) return;   // requireSession already sends error JSON
+            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            int msgId = Integer.parseInt(ctx.pathParam("id"));
+
+            // String cacheKey="messages_"+msgId+"_comments";
+            // String cachedJson = (String) cache.get(cacheKey);
+
+            // if (cachedJson != null) {
+            //     System.out.println("CACHE HIT: messages-"+msgId+"-comments");
+            //     ctx.result(cachedJson);
+            //     return;
+            // }
+
+            ArrayList<Database.CommentData> comments = db.selectComments(msgId);
+
+            StructuredResponse resp = new StructuredResponse("ok", null, comments);
+
+            String json = gson.toJson(resp);
+            // cache.set(cacheKey, 30, json);
+            ctx.result(json);
+
+            ctx.result(gson.toJson(resp));
+        });
+
+        app.get("/profile/{userId}", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            // you could require auth here; we'll do it to line up with "app use requires auth"
+            //SessionData session = requireSession(ctx);
+            // if (session == null) return;   // requireSession already sends error JSON
+            //String userId = cache.get(ctx.header("X-Session-Token")).toString();
+            // if(userId==null){
+            //     return;
+            // }
+
+            String targetId = ctx.pathParam("userId");
+
+            //String cacheKey = "public_profile_" + targetId;
+            // String cachedJson = (String) cache.get(cacheKey);
+            // if (cachedJson != null) {
+            //     System.out.println("CACHE HIT: profile-"+targetId);
+            //     ctx.result(cachedJson);
+            //     return;
+            // }
+
+            Database.ProfilePublicData profile = db.selectPublicProfile(targetId);
+
+            StructuredResponse resp = (profile == null)
+                    ? new StructuredResponse("error", "profile not found", null)
+                    : new StructuredResponse("ok", null, profile);
+            
+            String json = gson.toJson(resp);
+            //cache.set(cacheKey, 300, json);
+
+            ctx.result(gson.toJson(resp));
+        });
+
+
         app.start(8080);
-    }
+    }  
     
 }
