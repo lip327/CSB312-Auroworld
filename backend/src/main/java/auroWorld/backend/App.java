@@ -75,6 +75,9 @@ public class App
         public String family_name;
         public String email_verified;
     }
+    private static final class CreateFileRequest{
+        public String filename;
+    }
 
     //body class for creating a new post/message
     private static final class CreateMessageRequest {
@@ -302,18 +305,48 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
 
+        app.post("/files", ctx->{
+            SessionData session = requireSession(ctx);
 
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
+
+            CreateFileRequest req = gson.fromJson(ctx.body(),CreateFileRequest.class);
+
+            if(req==null || req.filename==null || req.filename.trim().isEmpty()){
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse(
+                    "error","missing filename",null)));
+                return;
+            }
+
+            int newId=db.insertFile("Tester",req.filename.trim(),msgId);
+
+            if(newId<0){
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse("error","failed to upload file",null)));
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("file_id",newId);
+            
+            ctx.status(201);
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,payload)));
+
+        });
 
         app.post("/messages/{id}/comments", ctx -> {
             // // Require login
             SessionData session = requireSession(ctx);
             // // if (session == null) return;   // requireSession already sends error JSON
-            if (session == null) return;
+            // if (session == null) return;
 
             ctx.contentType("application/json");
 
             int msgId = Integer.parseInt(ctx.pathParam("id"));
-
+            System.out.println("MESSAGE ID:"+msgId);
             CreateCommentRequest req = gson.fromJson(ctx.body(), CreateCommentRequest.class);
 
             if (req == null || req.comment == null || req.comment.trim().isEmpty()) {
@@ -323,8 +356,9 @@ public class App
                 return;
             }
 
-            int newId = db.insertComment(msgId, session.userId, req.comment.trim());
-
+            // int newId = db.insertComment(msgId, session.userId, req.comment.trim());
+            int newId = db.insertComment(msgId, "Tester", req.comment.trim());
+            
             if (newId < 0) {
                 ctx.status(500);
                 ctx.result(gson.toJson(new StructuredResponse(
@@ -339,7 +373,27 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
 
-    
+        // app.get("/file/{file_id}",ctx->{
+        //     ctx.status(200);
+        //     ctx.contentType("application/json");
+
+        //     int fileI
+        // });
+        app.put("/vote_messages/{msg_id}", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int msgId= Integer.parseInt(ctx.pathParam("msg_id"));
+            
+            int result = db.voteMessageTable(msgId, "Tester", 1);
+
+            StructuredResponse resp = (result == -1)
+                    ? new StructuredResponse("error", "vote failed", null)
+                    : new StructuredResponse("ok", "vote=" + result, null);
+            
+            ctx.result(gson.toJson(resp));
+        });
+
         app.get("/messages/{msg_id}", ctx -> {
             // // Require login
             // SessionData session = requireSession(ctx);

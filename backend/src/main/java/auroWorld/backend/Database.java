@@ -260,6 +260,137 @@ public class Database{
         }
     }
 
+    public int insertFile(String userId, String file, int msgId){
+        String sql=
+            "INSERT INTO files (username, filename, msg_id) "+
+            "VALUES (?, ?, ?)" +
+            "RETURNING file_id";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+                ps.setString(1,userId);
+                ps.setString(2,file);
+                ps.setInt(3,msgId);
+            
+            try (ResultSet rs = ps.executeQuery()){
+                if (rs.next()) return rs.getInt("file_id");
+                return -1;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+        
+    }
+
+    public int voteMessageTable(int msgId,String username, int upvote){
+        Integer oldVote=null;
+        int newVote=-1;
+        int change=0;
+        String text="";
+
+        // String selectSql = "SELECT vote FROM votes WHERE \"userID\"=? AND message_id=?";
+        // String deleteSql = "DELETE FROM votes WHERE \"userID\"=? AND message_id=?";
+        // String insertSql = "INSERT INTO votes (\"userID\", message_id, vote) VALUES (?, ?, ?)";
+        // String updateSql = "UPDATE votes SET vote=? WHERE \"userID\"=? AND message_id=?";
+        String selectUpvoteSql="SELECT upvote FROM vote_messages WHERE msg_id=? AND \"username\"=?";
+        String deleteUpvoteSql="DELETE upvote FROM vote_messages WHERE msg_id=? AND \"username\"=?";
+        String insertUpvoteSql = "INSERT INTO vote_messages (msg_id, \"username\", upvote) VALUES (?, ?, ?)";
+        String updateUpvoteSql = "UPDATE vote_messages SET upvote=? WHERE msg_id=? AND \"username\"=?";
+
+        try(Connection conn = getConnection()){
+            try (PreparedStatement ps = conn.prepareStatement(selectUpvoteSql)){
+                ps.setInt(1,msgId);
+                ps.setString(2,username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        oldVote = rs.getInt("upvote");
+                    }
+                }
+                System.out.println(ps);
+            }
+            if (oldVote==null){
+                text="Inserting upvote.";
+                newVote=1;
+                try(PreparedStatement ins=conn.prepareStatement(insertUpvoteSql)){
+                    ins.setInt(1,msgId);
+                    ins.setString(2,username);
+                    ins.setInt(3,newVote);
+                    ins.executeUpdate();
+                }
+                System.out.println("Successfully inserted upvote");
+                change=1;
+            }
+            else if (oldVote==1){
+                newVote=0;
+                text="Updating upvote takeback";
+
+                try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
+                    upd.setInt(1,newVote);
+                    System.out.println(upd);
+                    upd.setInt(2,msgId);
+                    System.out.println(upd);
+                    upd.setString(3,username);
+                    System.out.println(upd);
+                    upd.executeUpdate();
+                }
+                System.out.println("Successfully took back your upvote");
+                change=-1;
+            }
+            else if (oldVote==0){
+                text="Updating upvote regive";
+                newVote=1;
+                try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
+                    upd.setInt(1,newVote);
+                    System.out.println(upd);
+                    upd.setInt(2,msgId);
+                    System.out.println(upd);
+                    upd.setString(3,username);
+                    System.out.println(upd);
+                    upd.executeUpdate();
+                }
+                System.out.println("Successfully regave your upvote");
+                change=1;
+            }
+            changeMessageUpvote(conn, msgId,change);
+            return newVote;
+
+        } catch (SQLException e) {
+            System.out.println(text);
+            e.printStackTrace();
+            return -1;
+        }
+
+    }
+
+    private void changeMessageUpvote(Connection conn, int msgId, int change) throws SQLException{
+        System.out.println("modifying upvotes for post "+msgId);
+        int newUpvotes=0;
+        String selectUpvote = "SELECT upvote FROM messages WHERE msg_id=?";
+        String updateUpvote="UPDATE messages SET upvote=? WHERE msg_id=?";
+
+        try( PreparedStatement ps=conn.prepareStatement(selectUpvote)){
+            ps.setInt(1,msgId);
+            System.out.println(ps);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int currentUpvotes = rs.getInt("upvote");
+                    newUpvotes= currentUpvotes + change;
+                    System.out.println("Change ="+change);
+                    System.out.println("currentUpvotes = "+currentUpvotes);
+                    System.out.println("newUpvotes="+newUpvotes);
+                }
+            }
+        }
+        try(PreparedStatement upd=conn.prepareStatement(updateUpvote)){
+            System.out.println("preparing to update upvote in messages table");
+            upd.setInt(1,newUpvotes);
+            System.out.println(upd);
+            upd.setInt(2,msgId);
+            System.out.println(upd);
+            upd.executeUpdate();
+            System.out.println("successfully updated upvote for messages table");
+        }
+    }
 
     //insert a new comment and return comment_id
     public int insertComment(int msgId, String userId, String comment) {
@@ -275,6 +406,7 @@ public class Database{
             ps.setString(3, comment);
 
             try (ResultSet rs = ps.executeQuery()) {
+                System.out.println(rs);
                 if (rs.next()) return rs.getInt("comment_id");
                 return -1;
             }
