@@ -14,18 +14,8 @@ function Posts(){
     }
     function postButton(){
         console.log("hitting post button");
-        document.getElementById("addElement").style.display="block";
+        document.getElementById("addPost").style.display="block";
     }
-//     export async function apiPOST(url, body) {
-//     return fetch(url, {
-//         method: "POST",
-//         headers: {
-//             "Content-Type": "application/json",
-//             "X-Session-Token": getToken()
-//         },
-//         body: JSON.stringify(body)
-//     }).then(r => r.json());
-// }
     async function addPostButton(){
         console.log("hitting add post button");
         try{
@@ -44,19 +34,70 @@ function Posts(){
                 alert("Message Post failed: "+data.mMessage);
                 return;
             }
-
         } catch(error){
             console.error(error.message)
         }
-
+       cancelPostButton();
     }
     function cancelPostButton(){
         console.log("hitting cancel post button");
-        document.getElementById("addElement").style.display="none";
+        document.getElementById("addPost").style.display="none";
     }
+    function commentButton(){
+        console.log("hitting comment button");
+        document.getElementById("addComment").style.display="block";
+    }
+    async function addCommentButton(msg_id){
+        console.log("hitting add comment button:"+msg_id);
+        try{
+            const commBody={
+                comment:document.getElementById("newComment").value
+            }
+            const res = await fetch(`http://localhost:8080/messages/${msg_id}/comments`,{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(commBody)
+            })
+            const data =await res.json()
+            console.log("Comment data posted:",data)
+            if(data.mStatus!=="ok"){
+                alert("Comment failed: "+data.mMessage)
+                return
+            }
 
+        }catch(error){
+            console.error(error.message)
+        }
+        cancelCommentButton()
+    }
+    async function upvoteButton(msg_id){
+        console.log("hitting upvote button for "+msg_id)
+        try{
+            const res = await fetch(`http://localhost:8080/vote_messages/${msg_id}`,{
+                method:"PUT",
+                headers:{"Content-Type":"application/json"},
+            })
+            const data=await res.json()
+            console.log("Post upvoted: ",data);
+            if(data.mStatus!="ok"){
+                return
+            }
+        }catch(error){
+            console.error(error.message)
+        }
+    }
+    function cancelCommentButton(){
+        console.log("hitting cancel comment button");
+        document.getElementById("addComment").style.display="none";
+    }
     const [posts, setPosts] = useState([])
     const [commentsByPost,setCommentsByPost]=useState([])
+    const [fileUpload,setFileUpload]=useState()
+
+    function uploadImageHandler(e){
+        setFileUpload(URL.createObjectURL(e.target.files[0]))
+    }
+
     useEffect(() => {
         fetch("http://localhost:8080/messages")
         .then(res => res.json())
@@ -88,14 +129,17 @@ function Posts(){
             <button onClick={signoutButton}>Sign Out</button>
                         
             <button onClick={postButton}>Post</button>
-            <div id="addElement" style={{display:"none"}}>
+            <div id="addPost" style={{display:"none"}}>
                 <h3>Add a New Entry</h3>
                 <label>Title</label>
-                <input type="text" id="newTitle" />
+                <input type="file" onChange={uploadImageHandler}></input>
 
+                <img src={fileUpload} ></img>
+
+                <input type="text" id="newTitle" />
                 <textarea id="newPost"></textarea>
                 
-                <button onClick={addPostButton}>Add</button>
+                <button onClick={addPostButton}>Send</button>
                 <button onClick={cancelPostButton}>Cancel</button>
             </div>
             <div id="messageList">
@@ -104,14 +148,26 @@ function Posts(){
                     <h2>{post.subject}</h2>
                     <label>{post.message}</label>
                     <p>By {post.username}</p>
-                    <div id="commentList">
+                    
+                    <p>{post.upvote} Upvotes</p>
+                    <button onClick={()=> upvoteButton(post.msgId)}>⬆️</button>
+                    <button onClick={commentButton}>Comment</button>
+
+                    <div id="addComment" style={{display:"none"}}>
+                        <h3>Make a Comment</h3>
+                        <label>Message</label>
+
+                        <textarea id="newComment"></textarea>
+
+                        <button onClick={() => addCommentButton(post.msgId)}>Send</button>
+                        <button onClick={cancelCommentButton}>Cancel</button>
+                    </div>
                         {(commentsByPost[post.msgId])?.map((comment,j)=>(
                             <div key = {j}>
                                 <label>{comment.comment}</label>
                                 <p>By {comment.userId}</p>
                             </div>
                         ))}
-                    </div>
                 </div>
                 ))}
             </div>
