@@ -43,6 +43,41 @@ function Posts(){
         console.log("hitting cancel post button");
         document.getElementById("addPost").style.display="none";
     }
+
+
+    function editPostButton(){
+        console.log("hitting edit post button");
+        document.getElementById("editPost").style.display="block";
+    }
+    async function sendEditPostButton(msg_id){
+        console.log("hitting send edit post button ");
+        try{
+            const putBody={
+                subject:document.getElementById("editTitle").value,
+                message:document.getElementById("editMessage").value,
+            };
+            const response = await fetch(`http://localhost:8080/messages/${msg_id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(putBody)
+            });
+            const data = await response.json()
+            console.log("Edit post response: ",data)
+            if (data.mStatues!=="ok"){
+                alert("Edit post failed: "+data.mMessage);
+                return
+            }
+        }catch(error){
+            console.error(error.message)
+        }
+       cancelEditPostButton();
+    }
+    function cancelEditPostButton(){
+        console.log("hitting cancel edit post button");
+        document.getElementById("editPOst").style.display="none";
+    }
+
+
     function commentButton(){
         console.log("hitting comment button");
         document.getElementById("addComment").style.display="block";
@@ -79,7 +114,23 @@ function Posts(){
             })
             const data=await res.json()
             console.log("Post upvoted: ",data);
-            if(data.mStatus!="ok"){
+            if(data.mStatus!=="ok"){
+                return
+            }
+        }catch(error){
+            console.error(error.message)
+        }
+    }
+    async function upvoteCommentButton(comment_id){
+        console.log("hitting comment upvote button for "+comment_id)
+        try{
+            const res=await fetch(`http://localhost:8080/vote_comments/${comment_id}`,{
+                method:"PUT",
+                headers:{"Content-Type":"application/json"},
+            })
+            const data = await res.json()
+            console.log("Comment upvoted: ",data);
+            if(data.mStatus!=="ok"){
                 return
             }
         }catch(error){
@@ -150,7 +201,25 @@ function Posts(){
                     <p>By {post.username}</p>
                     
                     <p>{post.upvote} Upvotes</p>
+
+                    <button onClick={()=> editPostButton(post.msg_id)}>Edit</button>
+                    <div id="editPost" style={{display:"none"}}>
+                        <h3>Edit Entry</h3>
+                        <label>Title</label>
+                        <input type="file" onChange={uploadImageHandler}></input>
+
+                        <img src={fileUpload} ></img>
+
+                        <input type="text" id="editTitle" />
+                        <textarea id="editMessage"></textarea>
+                        
+                        <button onClick={sendEditPostButton}>Send</button>
+                        <button onClick={cancelEditPostButton}>Cancel</button>
+
+                    </div>
+
                     <button onClick={()=> upvoteButton(post.msgId)}>⬆️</button>
+
                     <button onClick={commentButton}>Comment</button>
 
                     <div id="addComment" style={{display:"none"}}>
@@ -166,6 +235,8 @@ function Posts(){
                             <div key = {j}>
                                 <label>{comment.comment}</label>
                                 <p>By {comment.userId}</p>
+                                <p>{comment.upvote} Upvotes</p>
+                                <button onClick={()=> upvoteCommentButton(comment.commentId)}>⬆️</button>
                             </div>
                         ))}
                 </div>
