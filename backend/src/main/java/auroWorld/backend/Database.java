@@ -42,7 +42,7 @@ public class Database{
         public final int msgId;
         public final String userId;
         public final String comment;
-        //public final int upvote;
+        public final int upvote;
         //public final int downvote;
         //public final Timestamp createdAt;
         public final boolean valid;
@@ -50,14 +50,14 @@ public class Database{
         //public final String userFirst;
        // public final String userLast;
 
-        public CommentData(int commentId, int msgId, String userId, String comment, boolean valid){
+        public CommentData(int commentId, int msgId, String userId, String comment, int upvote, boolean valid){
                            //int upvote, int downvote, Timestamp createdAt, boolean valid,
                            //String userFirst, String userLast) {
             this.commentId = commentId;
             this.msgId = msgId;
             this.userId = userId;
             this.comment = comment;
-            //this.upvote = upvote;
+            this.upvote = upvote;
             //this.downvote = downvote;
             //this.createdAt = createdAt;
             this.valid = valid;
@@ -260,6 +260,26 @@ public class Database{
         }
     }
 
+    // public int updatePost(int msgId, String title, String message){
+    //     String sql =
+    //             "UPDATE INTO messages (subject,message)"+
+    //             "VALUES (?, ?)"+
+    //             "RETURNING msg_id";
+    //         try(Connection conn= getConnection();
+    //             PreparedStatement ps = conn.prepareStatement(sql)){
+    //                 ps.setString(1,title);
+    //                 ps.setString(2,message);
+                
+    //             try (ResultSet rs=ps.executeUpdate()){
+    //                 if (rs.next()) return rs.getInt("msg_id");
+    //                 return -1;
+    //             }
+    //         } catch (SQLException e){
+    //             e.printStackTrace();
+    //             return -1;
+    //         }
+    // }
+
     public int insertFile(String userId, String file, int msgId){
         String sql=
             "INSERT INTO files (username, filename, msg_id) "+
@@ -390,6 +410,117 @@ public class Database{
             upd.executeUpdate();
             System.out.println("successfully updated upvote for messages table");
         }
+
+    }
+
+    public int voteCommentTable(int comment_id,String username, int upvote){
+        Integer oldVote=null;
+        int newVote=-1;
+        int change=0;
+        String text="";
+
+        // String selectSql = "SELECT vote FROM votes WHERE \"userID\"=? AND message_id=?";
+        // String deleteSql = "DELETE FROM votes WHERE \"userID\"=? AND message_id=?";
+        // String insertSql = "INSERT INTO votes (\"userID\", message_id, vote) VALUES (?, ?, ?)";
+        // String updateSql = "UPDATE votes SET vote=? WHERE \"userID\"=? AND message_id=?";
+        String selectUpvoteSql="SELECT upvote FROM vote_comments WHERE comment_id=? AND \"username\"=?";
+        String deleteUpvoteSql="DELETE upvote FROM vote_comments WHERE comment_id=? AND \"username\"=?";
+        String insertUpvoteSql = "INSERT INTO vote_comments (comment_id, \"username\", upvote) VALUES (?, ?, ?)";
+        String updateUpvoteSql = "UPDATE vote_comments SET upvote=? WHERE comment_id=? AND \"username\"=?";
+
+        try(Connection conn = getConnection()){
+            try (PreparedStatement ps = conn.prepareStatement(selectUpvoteSql)){
+                ps.setInt(1,comment_id);
+                ps.setString(2,username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        oldVote = rs.getInt("upvote");
+                    }
+                }
+                System.out.println(ps);
+            }
+            if (oldVote==null){
+                text="Inserting upvote. (comments)";
+                newVote=1;
+                try(PreparedStatement ins=conn.prepareStatement(insertUpvoteSql)){
+                    ins.setInt(1,comment_id);
+                    ins.setString(2,username);
+                    ins.setInt(3,newVote);
+                    ins.executeUpdate();
+                }
+                System.out.println("Successfully inserted upvote (comments)");
+                change=1;
+            }
+            else if (oldVote==1){
+                newVote=0;
+                text="Updating upvote takeback";
+
+                try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
+                    upd.setInt(1,newVote);
+                    System.out.println(upd);
+                    upd.setInt(2,comment_id);
+                    System.out.println(upd);
+                    upd.setString(3,username);
+                    System.out.println(upd);
+                    upd.executeUpdate();
+                }
+                System.out.println("Successfully took back your upvote (comments)");
+                change=-1;
+            }
+            else if (oldVote==0){
+                text="Updating upvote regive (comments)";
+                newVote=1;
+                try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
+                    upd.setInt(1,newVote);
+                    System.out.println(upd);
+                    upd.setInt(2,comment_id);
+                    System.out.println(upd);
+                    upd.setString(3,username);
+                    System.out.println(upd);
+                    upd.executeUpdate();
+                }
+                System.out.println("Successfully regave your upvote");
+                change=1;
+            }
+            changeCommentUpvote(conn, comment_id,change);
+            return newVote;
+
+        } catch (SQLException e) {
+            System.out.println(text);
+            e.printStackTrace();
+            return -1;
+        }
+
+    }
+
+    private void changeCommentUpvote(Connection conn, int comment_id, int change) throws SQLException{
+        System.out.println("modifying upvotes for comment "+comment_id);
+        int newUpvotes=0;
+        String selectUpvote = "SELECT upvote FROM comments WHERE comment_id=?";
+        String updateUpvote="UPDATE comments SET upvote=? WHERE comment_id=?";
+
+        try( PreparedStatement ps=conn.prepareStatement(selectUpvote)){
+            ps.setInt(1,comment_id);
+            System.out.println(ps);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int currentUpvotes = rs.getInt("upvote");
+                    newUpvotes= currentUpvotes + change;
+                    System.out.println("Change ="+change);
+                    System.out.println("currentUpvotes = "+currentUpvotes);
+                    System.out.println("newUpvotes="+newUpvotes);
+                }
+            }
+        }
+        try(PreparedStatement upd=conn.prepareStatement(updateUpvote)){
+            System.out.println("preparing to update upvote in comments table");
+            upd.setInt(1,newUpvotes);
+            System.out.println(upd);
+            upd.setInt(2,comment_id);
+            System.out.println(upd);
+            upd.executeUpdate();
+            System.out.println("successfully updated upvote for messages table");
+        }
     }
 
     //insert a new comment and return comment_id
@@ -422,7 +553,7 @@ public class Database{
         ArrayList<CommentData> res = new ArrayList<>();
 
         String sql =
-            "SELECT c.comment_id, c.msg_id, c.\"username\", c.comment,c.valid " +
+            "SELECT c.comment_id, c.msg_id, c.\"username\", c.comment,c.valid ,c.upvote " +
             //"       c.created_at,  u.first_name, u.last_name " +
             "FROM comments c " +
             "JOIN \"users\" u ON c.\"username\" = u.\"username\" " +
@@ -440,6 +571,7 @@ public class Database{
                             rs.getInt("msg_id"),
                             rs.getString("username"),
                             rs.getString("comment"),
+                            rs.getInt("upvote"),
                             //0, // upvote placeholder
                             //0, // downvote placeholder
                             //rs.getTimestamp("created_at"),

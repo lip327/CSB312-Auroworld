@@ -394,6 +394,21 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
+        app.put("/vote_comments/{comment_id}", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int comment_id= Integer.parseInt(ctx.pathParam("comment_id"));
+            
+            int result = db.voteCommentTable(comment_id, "Tester", 1);
+
+            StructuredResponse resp = (result == -1)
+                    ? new StructuredResponse("error", "comment vote failed", null)
+                    : new StructuredResponse("ok", "comment vote=" + result, null);
+            
+            ctx.result(gson.toJson(resp));
+        });
+
         app.get("/messages/{msg_id}", ctx -> {
             // // Require login
             // SessionData session = requireSession(ctx);
@@ -426,6 +441,29 @@ public class App
 
             ctx.result(json);
         });
+
+        // app.put("/messages/{id}",ctx->{
+        //     ctx.status(200);
+        //     ctx.contentType("application/json");
+
+        //     int msgId=Integer.parseInt(ctx.pathParam("id"));
+
+        //     CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+
+        //     if (req == null || req.subject || req.message == null) {
+        //         ctx.result(gson.toJson(new StructuredResponse(
+        //                 "error", "missing message subject or message", null)));
+        //         return;
+        //     }
+
+        //     int result = db.updatePost(msgId, "Tester", req.message);
+
+        //     StructuredResponse resp = (result == -1 || result == 0)
+        //             ? new StructuredResponse("error", "post update failed (not owner?)", null)
+        //             : new StructuredResponse("ok", null, "updated");
+
+        //     ctx.result(gson.toJson(resp));
+        // });
 
 
         app.get("/messages/{id}/comments", ctx -> {
