@@ -1,8 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { createClient } from '@supabase/supabase-js'
 
 function Posts(){
     const navigate=useNavigate();
+    //const supabase = createClient('your_project_url', 'your_supabase_api_key')
+    const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+
     function mainpageButton(){
         navigate("/posts")
     }
@@ -34,16 +38,50 @@ function Posts(){
                 alert("Message Post failed: "+data.mMessage);
                 return;
             }
+            console.log("addPost new message Id= "+data.mData.msgId)
+            addFileToTable(data.mData.msgId)
+            
         } catch(error){
             console.error(error.message)
         }
+        
        cancelPostButton();
     }
     function cancelPostButton(){
         console.log("hitting cancel post button");
         document.getElementById("addPost").style.display="none";
     }
+    async function addFileToTable(msg_id){
+        try{
+            //adding to file table
+            //const { authData: userData } = await supabase.auth.getUser()
+            //const userId = userData.user.id
 
+            console.log("addFileToTable msgId: "+msg_id)
+            const fileBody={
+                filename:fileUpload.name,
+                msgId:msg_id,
+            }
+            const response=await fetch("http://localhost:8080/files",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(fileBody)
+            });
+            const fileData = await response.json()
+            console.log("File Post response: ",fileData)
+            if (fileData.mStatus!=="ok"){
+                alert("File Post failed: "+fileData.mMessage)
+                return
+            }
+            //adding file to bucket
+            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
+            const {data} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
+            console.log(data)
+
+        }catch (error){
+            console.error(error.message)
+        }
+    }
 
     function editPostButton(){
         console.log("hitting edit post button");
@@ -76,7 +114,6 @@ function Posts(){
         console.log("hitting cancel edit post button");
         document.getElementById("editPOst").style.display="none";
     }
-
 
     function commentButton(){
         console.log("hitting comment button");
@@ -143,11 +180,33 @@ function Posts(){
     }
     const [posts, setPosts] = useState([])
     const [commentsByPost,setCommentsByPost]=useState([])
+
     const [fileUpload,setFileUpload]=useState()
+    const [previewUrl, setPreviewUrl] = useState();
 
     function uploadImageHandler(e){
-        setFileUpload(URL.createObjectURL(e.target.files[0]))
+        const file = e.target.files[0];
+        if (file) {
+            setFileUpload(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
     }
+
+    // async function displayImage(msg_id){
+    //     console.log('retriveing image for a post')
+    //     try{
+
+
+    //         const { data } = supabase.storage
+    //         .from('community_feed_file_upload')
+    //         .getPublicUrl('posts/'+msg_id+'/'+file_name);
+    //         console.log(data.publicUrl);
+    //         return data.publicUrl
+
+    //     } catch(error){
+    //         console.error(error.message)
+    //     }
+    // }
 
     useEffect(() => {
         fetch("http://localhost:8080/messages")
@@ -183,9 +242,17 @@ function Posts(){
             <div id="addPost" style={{display:"none"}}>
                 <h3>Add a New Entry</h3>
                 <label>Title</label>
+
                 <input type="file" onChange={uploadImageHandler}></input>
 
-                <img src={fileUpload} ></img>
+                <img src={previewUrl} ></img>
+                {fileUpload &&(
+                    <div>
+                        <p>Selected File: {fileUpload.name}</p>
+                        <p>Size: {fileUpload.size} bytes</p>
+                        <p>Type: {fileUpload.type}</p>
+                    </div>
+                )}
 
                 <input type="text" id="newTitle" />
                 <textarea id="newPost"></textarea>
@@ -196,6 +263,9 @@ function Posts(){
             <div id="messageList">
                 {posts?.map((post, i) => (
                 <div key={i}>{post.msg_id}
+
+                    {/* <img src={displayImage(post.msg_id)}></img> */}
+
                     <h2>{post.subject}</h2>
                     <label>{post.message}</label>
                     <p>By {post.username}</p>

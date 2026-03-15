@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route,Navigate } from "react-router-dom";
 import Posts from './posts.js'
 import Courses from './courses.js'
 import Login from './login.js'
+import Signup from './signup.js'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 
@@ -17,6 +18,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/signup" element={<Signup />}/>
         </Routes>
       </BrowserRouter>
     </GoogleOAuthProvider>

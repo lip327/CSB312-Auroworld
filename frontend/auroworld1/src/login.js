@@ -10,8 +10,11 @@ function Login(){
     function handleLogout(){
         googleLogout()
     }
+    function signup(){
+        navigate("/signup")
+    }
 
-    async function loginButton(credentialResponse) {
+    async function googleLoginButton(credentialResponse) {
         const idToken=credentialResponse.credential
         try{
             const response = await fetch("http://localhost:8080/auth/login", {
@@ -31,15 +34,24 @@ function Login(){
         }
         navigate("/posts");
     }
+    async function userpassLoginButton(){
+
+    }
 
     return(
-        <GoogleLogin onSuccess={(credentialResponse)=>{
-            console.log(credentialResponse)
-            console.log(jwtDecode(credentialResponse.credential))
-            loginButton(credentialResponse)
-        }} onError={()=>console.log("Login Failed")}></GoogleLogin>
-       
+        <div>
+            <GoogleLogin onSuccess={(credentialResponse)=>{
+                console.log(credentialResponse)
+                console.log(jwtDecode(credentialResponse.credential))
+                googleLoginButton(credentialResponse)
+            }} onError={()=>console.log("Login Failed")}></GoogleLogin>
+            <label>Username</label>
+            <input type="text" id="username"/>
+            <label>Password</label>
+            <input type="text" id="password"/>
+            <button onClick={userpassLoginButton()}>Login</button>
+            <button onClick={signup}>Sign Up</button>
+        </div>
     );
-
 }
 export default Login;
