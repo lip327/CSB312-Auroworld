@@ -33,14 +33,14 @@ public class App
 
     //class for pulling information from google account
     private static final class SessionData {
-        final String userId;
+        // final String userId;
         final String email;
         final String firstName;
         final String lastName;
         final boolean isAdmin;   // you can wire this via env if you like
 
-        SessionData(String userId, String email, String firstName, String lastName, boolean isAdmin) {
-            this.userId = userId;
+        SessionData(String email, String firstName, String lastName, boolean isAdmin) {
+            // this.userId = userId;
             this.email = email;
             this.firstName = firstName;
             this.lastName = lastName;
@@ -61,6 +61,10 @@ public class App
             return SESSIONS.get(token);
         }
     }
+    private static final class CreateAccountRequest{
+        public String user;
+        public String email;
+    }
     public static final class LoginRequest {
         public String idToken;
     }
@@ -77,6 +81,7 @@ public class App
     }
     private static final class CreateFileRequest{
         public String filename;
+        public int msgId;
     }
 
     //body class for creating a new post/message
@@ -89,7 +94,6 @@ public class App
     private static final class CreateCommentRequest {
         public String comment;
     }
-
 
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
@@ -180,6 +184,79 @@ public class App
                 });
             });
         });
+        app.post("/newuser",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+            System.out.println("ctx body for creating account  : "+ctx.body());
+
+            CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
+
+            if(car==null || car.email == null || car.user==null){
+                System.out.println(car);
+                System.out.println(car.email);
+                System.out.println(car.user);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing username or email", null)));
+                return;
+            }
+
+            int result = db.insertNewAccount(car.user,car.email);
+
+            System.out.println(result);
+
+            if(result==0){
+                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,result)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+        });
+        app.get("/user_email/{email}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+            System.out.println("ctx body for checking email : "+ctx.body());
+
+            String email=ctx.pathParam("email");
+
+            System.out.println("ABout to check if email already registered");
+
+            //boolean result = db.emailExists(cer.email);
+            boolean result=db.emailExists(email);
+
+            System.out.println(result);
+
+            if(result==true){
+                ctx.result(gson.toJson(new StructuredResponse("account with "+email+" already exists",null,result)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+            
+        });
+
+        app.get("/user_username/{username}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+            System.out.println("ctx body for checking username : "+ctx.body());
+
+            String username=ctx.pathParam("username");
+
+            System.out.println("ABout to check if username already registered");
+
+            //boolean result = db.usernameExists(cur.username);
+            boolean result=db.usernameExists(username);
+
+            System.out.println(result);
+
+            if(result==true){
+                ctx.result(gson.toJson(new StructuredResponse("account with "+username+" already exists",null,result)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+            
+        });
+
         app.post("/auth/login", ctx -> {
 
             ctx.status(200);
@@ -207,9 +284,6 @@ public class App
                         "error", "invalid or unauthorized token", null)));
                 return;
             }
-            // console.log(info.sub);
-            // console.log(info.given_name);
-            // console.log(info.family_name);
 
             // Determine if this user is admin (optional)
             boolean isAdmin = false;
@@ -220,12 +294,12 @@ public class App
             }
 
             // Ensure user exists in DB (with email)
-            db.ensureUserWithEmail("Tester", info.given_name, info.family_name, info.email);
+            db.ensureUserWithEmail(info.given_name, info.family_name, info.email);
+            // db.ensureUserWithEmail2(info.given_name,info.family_name,info.email);
             // db.ensureUserWithEmail(info.sub, info.given_name, info.family_name, info.email);
 
             // Create server-side session
             SessionData sd = new SessionData(
-                    info.sub,
                     info.email,
                     info.given_name,
                     info.family_name,
@@ -235,7 +309,7 @@ public class App
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("sessionToken", sessionToken);
-            payload.put("username", info.sub);
+            // payload.put("username", info.sub);
             payload.put("email", info.email);
             payload.put("firstName", info.given_name);
             payload.put("lastName", info.family_name);
@@ -310,18 +384,18 @@ public class App
 
             ctx.contentType("application/json");
 
-            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
-
             CreateFileRequest req = gson.fromJson(ctx.body(),CreateFileRequest.class);
 
-            if(req==null || req.filename==null || req.filename.trim().isEmpty()){
+            System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
+
+            if(req==null || req.filename==null || req.filename.trim().isEmpty() || req.msgId==0){
                 ctx.status(400);
                 ctx.result(gson.toJson(new StructuredResponse(
                     "error","missing filename",null)));
                 return;
             }
 
-            int newId=db.insertFile("Tester",req.filename.trim(),msgId);
+            int newId=db.insertFileToTable("alice",req.filename.trim(),req.msgId,"posts/"+req.msgId+"/"+req.filename.trim());
 
             if(newId<0){
                 ctx.status(500);

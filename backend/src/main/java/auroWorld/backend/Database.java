@@ -138,7 +138,7 @@ public class Database{
         return null;
     }
 
-    public int ensureUserWithEmail(String username, String first, String last, String email) {
+    public int ensureUserWithEmail(String first, String last, String email) {
         String sql =
                 "INSERT INTO \"users\" (\"username\", firstname, lastname, email, role) " +
                 "VALUES (?, ?, ?, ?, NULL) " +
@@ -150,11 +150,99 @@ public class Database{
         try (Connection conn = getConnection();
              PreparedStatement q = conn.prepareStatement(sql)) {
 
-            q.setString(1, username);
+            // q.setString(1, username);
             q.setString(2, first);
             q.setString(3, last);
             q.setString(4, email);
             return q.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+    // public int ensureUserWithEmail2(String email){
+    //     String check_email=
+    //             "SELECT email FROM users WHERE email "
+    // }
+    public boolean usernameExists(String username){
+        String username_sql=
+            "SELECT username FROM users WHERE username = ?";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(username_sql)){
+            ps.setString(1,username);
+            try (ResultSet user_exists = ps.executeQuery()){
+                while(user_exists.next()){
+                    String foundUsername=user_exists.getString("username");
+                    return true;
+                }
+            }
+        } catch(SQLException e){
+            e.printStackTrace();
+            return true;
+        }
+        return false;
+    }
+
+    public boolean emailExists(String email){
+        String email_sql=
+            "SELECT email FROM users WHERE email = ?";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(email_sql)){
+            ps.setString(1,email);
+            try (ResultSet email_exists = ps.executeQuery()){
+                while(email_exists.next()){
+                    String foundEmail=email_exists.getString("email");
+                    return true;
+                }
+            }
+        } catch(SQLException e){
+            e.printStackTrace();
+            return true;
+        }
+        return false;
+    }
+    public int insertNewAccount(String username, String email){
+        String sql =
+                "INSERT INTO users (username, firstname, lastname, email, role, note)" +
+                "VALUES (?, ?, ?, ?, ?, ?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+                ps.setString(1,username);
+                ps.setString(2,"unknown");
+                ps.setString(3,"unknown");
+                ps.setString(4,email);
+                ps.setString(5,"user");
+                ps.setString(6,"");
+                
+                int torf=ps.executeUpdate();
+                System.out.println(torf);
+
+                return torf;
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    // insert a new message, return msg_id 
+    public int insertMessage(String userId, String subject, String message) {
+        String sql =
+                "INSERT INTO messages (username, subject, message, upvote, downvote) " +
+                "VALUES (?, ?, ?, 0, 0) " +
+                "RETURNING msg_id";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, userId);
+            ps.setString(2, subject);
+            ps.setString(3, message);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt("msg_id");
+                return -1;
+            }
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -235,31 +323,6 @@ public class Database{
         }
     }
 
-    // insert a new message, return msg_id 
-    public int insertMessage(String userId, String subject, String message) {
-        String sql =
-                "INSERT INTO messages (username, subject, message, upvote, downvote) " +
-                "VALUES (?, ?, ?, 0, 0) " +
-                "RETURNING msg_id";
-
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, userId);
-            ps.setString(2, subject);
-            ps.setString(3, message);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt("msg_id");
-                return -1;
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
     // public int updatePost(int msgId, String title, String message){
     //     String sql =
     //             "UPDATE INTO messages (subject,message)"+
@@ -280,16 +343,17 @@ public class Database{
     //         }
     // }
 
-    public int insertFile(String userId, String file, int msgId){
+    public int insertFileToTable(String userId, String file,int msgId,String filepath){
         String sql=
-            "INSERT INTO files (username, filename, msg_id) "+
-            "VALUES (?, ?, ?)" +
+            "INSERT INTO files (username, filename, msg_id, filepath) "+
+            "VALUES (?, ?, ?, ?)" +
             "RETURNING file_id";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
                 ps.setString(1,userId);
                 ps.setString(2,file);
                 ps.setInt(3,msgId);
+                ps.setString(4,filepath);
             
             try (ResultSet rs = ps.executeQuery()){
                 if (rs.next()) return rs.getInt("file_id");
