@@ -6,6 +6,19 @@ function Posts(){
     const navigate=useNavigate();
     //const supabase = createClient('your_project_url', 'your_supabase_api_key')
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+    //const { data: { session }, error } = await supabase.auth.getSession();
+
+    async function getCurrentUserId(){
+        const { data: { user } ,error} = await supabase.auth.getUser()
+        if(error){
+            console.log("problem grabbing uuid" +error.message)
+            return
+        }
+        else if(user){
+            console.log("current user's unique id: "+user.id)
+            return user.id
+        }
+    }
 
     function mainpageButton(){
         navigate("/posts")
@@ -13,19 +26,36 @@ function Posts(){
     function coursesButton(){
         navigate("/courses")
     }
-    function signoutButton(){
-        navigate("/login")
+    async function signoutButton(){
+        const { error } = await supabase.auth.signOut();
+        if (!error) {
+            console.log('User signed out successfully and session cleared.');
+            navigate("/login")
+        } else {
+            console.error('Error signing out:', error.message);
+        }
     }
-    function postButton(){
+    async function postButton(){
         console.log("hitting post button");
+        // const { data: { session }, error } = await supabase.auth.getSession();
+        // if (session) {
+        //     console.log('User is logged in:', session.user);
+        // } else {
+        //     console.log('No user session.');
+        //     console.error(error.message)
+        //     alert("You are not signed in so you cant post")
+        //     return
+        // }
         document.getElementById("addPost").style.display="block";
     }
     async function addPostButton(){
         console.log("hitting add post button");
         try{
+            const current_uuid = await getCurrentUserId()
             const postBody = {
                 subject: document.getElementById("newTitle").value,
-                message: document.getElementById("newPost").value
+                message: document.getElementById("newPost").value,
+                user_uuid: current_uuid
             };
             const response = await fetch("http://localhost:8080/messages", {
                 method: "POST",
@@ -39,7 +69,10 @@ function Posts(){
                 return;
             }
             console.log("addPost new message Id= "+data.mData.msgId)
-            addFileToTable(data.mData.msgId)
+            if(fileUpload) {
+                addFileToTable(data.mData.msgId)
+            }
+            return
             
         } catch(error){
             console.error(error.message)
@@ -58,9 +91,11 @@ function Posts(){
             //const userId = userData.user.id
 
             console.log("addFileToTable msgId: "+msg_id)
+            const current_uuid = await getCurrentUserId()
             const fileBody={
                 filename:fileUpload.name,
                 msgId:msg_id,
+                user_uuid:current_uuid
             }
             const response=await fetch("http://localhost:8080/files",{
                 method:"POST",
@@ -122,7 +157,9 @@ function Posts(){
     async function addCommentButton(msg_id){
         console.log("hitting add comment button:"+msg_id);
         try{
+            const current_uuid = await getCurrentUserId()
             const commBody={
+                user_uuid:current_uuid,
                 comment:document.getElementById("newComment").value
             }
             const res = await fetch(`http://localhost:8080/messages/${msg_id}/comments`,{
@@ -145,9 +182,14 @@ function Posts(){
     async function upvoteButton(msg_id){
         console.log("hitting upvote button for "+msg_id)
         try{
+            const current_uuid = await getCurrentUserId()
+            const stuff ={
+                user_uuid:current_uuid,
+            }
             const res = await fetch(`http://localhost:8080/vote_messages/${msg_id}`,{
                 method:"PUT",
                 headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(stuff)
             })
             const data=await res.json()
             console.log("Post upvoted: ",data);
@@ -161,9 +203,14 @@ function Posts(){
     async function upvoteCommentButton(comment_id){
         console.log("hitting comment upvote button for "+comment_id)
         try{
+            const current_uuid = await getCurrentUserId()
+            const stuff ={
+                user_uuid:current_uuid,
+            }
             const res=await fetch(`http://localhost:8080/vote_comments/${comment_id}`,{
                 method:"PUT",
                 headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(stuff)
             })
             const data = await res.json()
             console.log("Comment upvoted: ",data);
@@ -184,6 +231,8 @@ function Posts(){
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
 
+    const [imageUrls, setImageUrls] = useState({});
+
     function uploadImageHandler(e){
         const file = e.target.files[0];
         if (file) {
@@ -192,21 +241,14 @@ function Posts(){
         }
     }
 
-    // async function displayImage(msg_id){
-    //     console.log('retriveing image for a post')
-    //     try{
-
-
-    //         const { data } = supabase.storage
-    //         .from('community_feed_file_upload')
-    //         .getPublicUrl('posts/'+msg_id+'/'+file_name);
-    //         console.log(data.publicUrl);
-    //         return data.publicUrl
-
-    //     } catch(error){
-    //         console.error(error.message)
-    //     }
-    // }
+    const [currentUserId, setCurrentUserId] = useState(null);
+    useEffect(() => {
+        async function fetchUserId() {
+            const id = await getCurrentUserId();
+            setCurrentUserId(id);
+        }
+        fetchUserId();
+    }, []);
 
     useEffect(() => {
         fetch("http://localhost:8080/messages")
@@ -232,6 +274,60 @@ function Posts(){
         .catch(err => console.error("FETCH ERROR for getting posts:", err))
     }, []);
 
+    useEffect(() => {
+        async function loadImages() {
+            if (!posts) return;
+            const newUrls = {};
+            for (const post of posts) {
+                try {
+                    console.log("retrieving image for post", post.msgId);
+
+                    const filename_res = await fetch(
+                        `http://localhost:8080/file/${post.msgId}`
+                    );
+
+                    const filename = await filename_res.json();
+
+                    console.log("does file exist: "+filename.mData)
+
+                    if (filename.mStatus !== "ok") {
+                        newUrls[post.msg_id] = null;
+                        continue;
+                    }
+                    const { data} = supabase.storage
+                        .from('community_feed_file_upload')
+                        .getPublicUrl(
+                            'posts/' +
+                            post.msgId +
+                            '/' +
+                            filename.mData
+                        );
+                    console.log("data from community_feed: ",data)
+                    if (data && data.publicUrl) {
+                        console.log('Public URL:', data.publicUrl);
+                    } else {
+                        console.error('Error getting public URL or URL is undefined');
+                    }
+
+                    console.log("data.public url =",data.publicUrl)
+                    
+                    newUrls[post.msgId] = data.publicUrl;
+                    console.log("imageUrls: ",newUrls)
+                } catch (err) {
+                    console.error(err);
+                    newUrls[post.msgId] = null;
+                }
+            }
+
+            setImageUrls(newUrls);
+        }
+
+        loadImages();
+
+    }, [posts]);
+
+    console.log("usestate currentuserid: "+currentUserId)
+   
     return(
         <div id="homepage">
             <button onClick={mainpageButton}>Mainpage</button>
@@ -264,15 +360,22 @@ function Posts(){
                 {posts?.map((post, i) => (
                 <div key={i}>{post.msg_id}
 
-                    {/* <img src={displayImage(post.msg_id)}></img> */}
+                    {imageUrls[post.msgId] && (
+                        <img
+                            src={imageUrls[post.msgId]}
+                            alt="Post attachment"
+                            width="200"
+                        />
+                    )}
 
                     <h2>{post.subject}</h2>
                     <label>{post.message}</label>
                     <p>By {post.username}</p>
                     
                     <p>{post.upvote} Upvotes</p>
-
-                    <button onClick={()=> editPostButton(post.msg_id)}>Edit</button>
+                    {currentUserId && post.uuid === currentUserId && (
+                        <button onClick={() => editPostButton(post.msg_id)}>Edit</button>
+                    )}
                     <div id="editPost" style={{display:"none"}}>
                         <h3>Edit Entry</h3>
                         <label>Title</label>

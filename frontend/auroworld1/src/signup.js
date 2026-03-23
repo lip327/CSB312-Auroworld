@@ -35,6 +35,11 @@ function Signup(){
                 email: document.getElementById("email").value,
                 password: document.getElementById("password").value,
             })
+            if(error){
+                console.log("error signing up: "+error.message)
+                alert("Problem with signing up.")
+                return
+            }
 
             const account_vals={
                 email:document.getElementById("email").value,
