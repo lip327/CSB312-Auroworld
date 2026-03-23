@@ -12,24 +12,24 @@ public class Database{
     //message class
     public static final class MessageData {
         public final int msgId;
-        public final String username;
         public final String subject;
         public final String message;
         public final int upvote;
         public final int downvote;
+        public final String uuid;
 
         // NEW: author name fields
         // public final String firstName;
         // public final String lastName;
 
-        public MessageData(int msgId, String username, String subject, String message,
-                        int upvote, int downvote) {
+        public MessageData(int msgId, String subject, String message,
+                        int upvote, int downvote, String uuid) {
             this.msgId = msgId;
-            this.username = username;
             this.subject = subject;
             this.message = message;
             this.upvote = upvote;
             this.downvote = downvote;
+            this.uuid=uuid;
             // this.createdAt = createdAt;
             // this.valid = valid;
             // this.firstName = firstName;
@@ -40,27 +40,28 @@ public class Database{
     public static final class CommentData {
         public final int commentId;
         public final int msgId;
-        public final String userId;
         public final String comment;
         public final int upvote;
         //public final int downvote;
         //public final Timestamp createdAt;
         public final boolean valid;
+        public final String uuid;
 
         //public final String userFirst;
        // public final String userLast;
 
-        public CommentData(int commentId, int msgId, String userId, String comment, int upvote, boolean valid){
+        public CommentData(int commentId, int msgId, String comment, int upvote, 
+                            boolean valid, String uuid){
                            //int upvote, int downvote, Timestamp createdAt, boolean valid,
                            //String userFirst, String userLast) {
             this.commentId = commentId;
             this.msgId = msgId;
-            this.userId = userId;
             this.comment = comment;
             this.upvote = upvote;
             //this.downvote = downvote;
             //this.createdAt = createdAt;
             this.valid = valid;
+            this.uuid=uuid;
             //this.userFirst = userFirst;
             //this.userLast = userLast;
         }
@@ -161,10 +162,24 @@ public class Database{
             return -1;
         }
     }
-    // public int ensureUserWithEmail2(String email){
-    //     String check_email=
-    //             "SELECT email FROM users WHERE email "
-    // }
+    public String grabUsernameFromUuid(String uuid){
+        String sql =
+            "SELECT username FROM users WHERE unique_id = ?";
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, uuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("username");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+        return null;
+    }
+
     public boolean usernameExists(String username){
         String username_sql=
             "SELECT username FROM users WHERE username = ?";
@@ -202,9 +217,9 @@ public class Database{
         }
         return false;
     }
-    public int insertNewAccount(String username, String email){
+    public int insertNewAccount(String username, String email, String uuid){
         String sql =
-                "INSERT INTO users (username, firstname, lastname, email, role, note)" +
+                "INSERT INTO users (username, firstname, lastname, email, role, note, unique_id)" +
                 "VALUES (?, ?, ?, ?, ?, ?) ";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
@@ -214,6 +229,7 @@ public class Database{
                 ps.setString(4,email);
                 ps.setString(5,"user");
                 ps.setString(6,"");
+                ps.setString(7,uuid);
                 
                 int torf=ps.executeUpdate();
                 System.out.println(torf);
@@ -228,16 +244,16 @@ public class Database{
     // insert a new message, return msg_id 
     public int insertMessage(String userId, String subject, String message) {
         String sql =
-                "INSERT INTO messages (username, subject, message, upvote, downvote) " +
-                "VALUES (?, ?, ?, 0, 0) " +
+                "INSERT INTO messages (subject, message, upvote, downvote, unique_id) " +
+                "VALUES (?, ?, 0, 0, ?) " +
                 "RETURNING msg_id";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, userId);
-            ps.setString(2, subject);
-            ps.setString(3, message);
+            ps.setString(1, subject);
+            ps.setString(2, message);
+            ps.setString(3, userId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt("msg_id");
@@ -254,7 +270,7 @@ public class Database{
         ArrayList<MessageData> res = new ArrayList<>();
 
         String sql =
-            "SELECT msg_id, username, subject, message, upvote, downvote " +
+            "SELECT msg_id, subject, message, upvote, downvote, unique_id " +
             "FROM messages " +
             "ORDER BY msg_id";
             // "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
@@ -270,11 +286,11 @@ public class Database{
             while (rs.next()) {
                 res.add(new MessageData(
                         rs.getInt("msg_id"),
-                        rs.getString("username"),
                         rs.getString("subject"),
                         rs.getString("message"),
                         rs.getInt("upvote"),
-                        rs.getInt("downvote")
+                        rs.getInt("downvote"),
+                        rs.getString("unique_id")
                         // rs.getString("first_name"),   // may be null if somehow missing
                         // rs.getString("last_name")
                 ));
@@ -286,13 +302,34 @@ public class Database{
         return res;
     }
 
+    public String grabFilename(int msg_id){
+        String sql =
+            "SELECT f.msg_id, f.filename FROM files f WHERE f.msg_id=?";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setInt(1,msg_id);
+            try (ResultSet rs = ps.executeQuery()){
+                if(rs.next()){
+                    return(rs.getString("filename"));
+                }
+                else{
+                    return null;
+                }
+            }
+        } catch(SQLException e){
+            e.printStackTrace();
+            return null;
+        }
+
+    }
+
     public MessageData selectMessage(int msg_Id) {
         String sql =
-            "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
-            "       m.upvote, m.downvote, " +
+            "SELECT m.msg_id, m.subject, m.message, " +
+            "       m.upvote, m.downvote, m.unique_id, " +
             "       u.firstname, u.lastname " +
             "FROM messages m " +
-            "LEFT JOIN \"users\" u ON m.\"username\" = u.\"username\" " +
+            "LEFT JOIN \"users\" u ON m.\"unique_id\" = u.\"unique_id\" " +
             "WHERE m.msg_id=?";
 
         try (Connection conn = getConnection();
@@ -305,11 +342,11 @@ public class Database{
 
                 return new MessageData(
                         rs.getInt("msg_id"),
-                        rs.getString("username"),
                         rs.getString("subject"),
                         rs.getString("message"),
                         rs.getInt("upvote"),
-                        rs.getInt("downvote")
+                        rs.getInt("downvote"),
+                        rs.getString("unique_id")
                         //rs.getTimestamp("created_at"),
                         //rs.getBoolean("valid"),
                         //rs.getString("first_name"),
@@ -345,15 +382,15 @@ public class Database{
 
     public int insertFileToTable(String userId, String file,int msgId,String filepath){
         String sql=
-            "INSERT INTO files (username, filename, msg_id, filepath) "+
+            "INSERT INTO files (filename, msg_id, filepath, unique_id) "+
             "VALUES (?, ?, ?, ?)" +
             "RETURNING file_id";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
-                ps.setString(1,userId);
-                ps.setString(2,file);
-                ps.setInt(3,msgId);
-                ps.setString(4,filepath);
+                ps.setString(1,file);
+                ps.setInt(2,msgId);
+                ps.setString(3,filepath);
+                ps.setString(4,userId);
             
             try (ResultSet rs = ps.executeQuery()){
                 if (rs.next()) return rs.getInt("file_id");
@@ -363,28 +400,23 @@ public class Database{
             e.printStackTrace();
             return -1;
         }
-        
     }
 
-    public int voteMessageTable(int msgId,String username, int upvote){
+    public int voteMessageTable(int msgId,String user_uuid, int upvote){
         Integer oldVote=null;
         int newVote=-1;
         int change=0;
         String text="";
 
-        // String selectSql = "SELECT vote FROM votes WHERE \"userID\"=? AND message_id=?";
-        // String deleteSql = "DELETE FROM votes WHERE \"userID\"=? AND message_id=?";
-        // String insertSql = "INSERT INTO votes (\"userID\", message_id, vote) VALUES (?, ?, ?)";
-        // String updateSql = "UPDATE votes SET vote=? WHERE \"userID\"=? AND message_id=?";
-        String selectUpvoteSql="SELECT upvote FROM vote_messages WHERE msg_id=? AND \"username\"=?";
-        String deleteUpvoteSql="DELETE upvote FROM vote_messages WHERE msg_id=? AND \"username\"=?";
-        String insertUpvoteSql = "INSERT INTO vote_messages (msg_id, \"username\", upvote) VALUES (?, ?, ?)";
-        String updateUpvoteSql = "UPDATE vote_messages SET upvote=? WHERE msg_id=? AND \"username\"=?";
+        String selectUpvoteSql="SELECT upvote FROM vote_messages WHERE msg_id=? AND \"unique_id\"=?";
+        String deleteUpvoteSql="DELETE FROM vote_messages WHERE msg_id=? AND \"unique_id\"=?";
+        String insertUpvoteSql = "INSERT INTO vote_messages (msg_id, \"unique_id\", upvote) VALUES (?, ?, ?)";
+        String updateUpvoteSql = "UPDATE vote_messages SET upvote=? WHERE msg_id=? AND \"unique_id\"=?";
 
         try(Connection conn = getConnection()){
             try (PreparedStatement ps = conn.prepareStatement(selectUpvoteSql)){
                 ps.setInt(1,msgId);
-                ps.setString(2,username);
+                ps.setString(2,user_uuid);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         oldVote = rs.getInt("upvote");
@@ -397,8 +429,9 @@ public class Database{
                 newVote=1;
                 try(PreparedStatement ins=conn.prepareStatement(insertUpvoteSql)){
                     ins.setInt(1,msgId);
-                    ins.setString(2,username);
+                    ins.setString(2,user_uuid);
                     ins.setInt(3,newVote);
+
                     ins.executeUpdate();
                 }
                 System.out.println("Successfully inserted upvote");
@@ -413,7 +446,7 @@ public class Database{
                     System.out.println(upd);
                     upd.setInt(2,msgId);
                     System.out.println(upd);
-                    upd.setString(3,username);
+                    upd.setString(3,user_uuid);
                     System.out.println(upd);
                     upd.executeUpdate();
                 }
@@ -428,7 +461,7 @@ public class Database{
                     System.out.println(upd);
                     upd.setInt(2,msgId);
                     System.out.println(upd);
-                    upd.setString(3,username);
+                    upd.setString(3,user_uuid);
                     System.out.println(upd);
                     upd.executeUpdate();
                 }
@@ -477,7 +510,7 @@ public class Database{
 
     }
 
-    public int voteCommentTable(int comment_id,String username, int upvote){
+    public int voteCommentTable(int comment_id,String unique_id, int upvote){
         Integer oldVote=null;
         int newVote=-1;
         int change=0;
@@ -487,15 +520,15 @@ public class Database{
         // String deleteSql = "DELETE FROM votes WHERE \"userID\"=? AND message_id=?";
         // String insertSql = "INSERT INTO votes (\"userID\", message_id, vote) VALUES (?, ?, ?)";
         // String updateSql = "UPDATE votes SET vote=? WHERE \"userID\"=? AND message_id=?";
-        String selectUpvoteSql="SELECT upvote FROM vote_comments WHERE comment_id=? AND \"username\"=?";
-        String deleteUpvoteSql="DELETE upvote FROM vote_comments WHERE comment_id=? AND \"username\"=?";
-        String insertUpvoteSql = "INSERT INTO vote_comments (comment_id, \"username\", upvote) VALUES (?, ?, ?)";
-        String updateUpvoteSql = "UPDATE vote_comments SET upvote=? WHERE comment_id=? AND \"username\"=?";
+        String selectUpvoteSql="SELECT upvote FROM vote_comments WHERE comment_id=? AND \"unique_id\"=?";
+        String deleteUpvoteSql="DELETE upvote FROM vote_comments WHERE comment_id=? AND \"unique_id\"=?";
+        String insertUpvoteSql = "INSERT INTO vote_comments (comment_id, \"unique_id\", upvote) VALUES (?, ?, ?)";
+        String updateUpvoteSql = "UPDATE vote_comments SET upvote=? WHERE comment_id=? AND \"unique_id\"=?";
 
         try(Connection conn = getConnection()){
             try (PreparedStatement ps = conn.prepareStatement(selectUpvoteSql)){
                 ps.setInt(1,comment_id);
-                ps.setString(2,username);
+                ps.setString(2,unique_id);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         oldVote = rs.getInt("upvote");
@@ -508,7 +541,7 @@ public class Database{
                 newVote=1;
                 try(PreparedStatement ins=conn.prepareStatement(insertUpvoteSql)){
                     ins.setInt(1,comment_id);
-                    ins.setString(2,username);
+                    ins.setString(2,unique_id);
                     ins.setInt(3,newVote);
                     ins.executeUpdate();
                 }
@@ -520,11 +553,11 @@ public class Database{
                 text="Updating upvote takeback";
 
                 try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
-                    upd.setInt(1,newVote);
+                    upd.setInt(1,comment_id);
                     System.out.println(upd);
-                    upd.setInt(2,comment_id);
+                    upd.setInt(2,newVote);
                     System.out.println(upd);
-                    upd.setString(3,username);
+                    upd.setString(3,unique_id);
                     System.out.println(upd);
                     upd.executeUpdate();
                 }
@@ -535,11 +568,11 @@ public class Database{
                 text="Updating upvote regive (comments)";
                 newVote=1;
                 try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
-                    upd.setInt(1,newVote);
+                    upd.setInt(1,comment_id);
                     System.out.println(upd);
-                    upd.setInt(2,comment_id);
+                    upd.setInt(2,newVote);
                     System.out.println(upd);
-                    upd.setString(3,username);
+                    upd.setString(3,unique_id);
                     System.out.println(upd);
                     upd.executeUpdate();
                 }
@@ -590,15 +623,15 @@ public class Database{
     //insert a new comment and return comment_id
     public int insertComment(int msgId, String userId, String comment) {
         String sql =
-            "INSERT INTO comments (msg_id, username, comment, valid) " +
-            "VALUES (?, ?, ?, true) RETURNING comment_id";
+            "INSERT INTO comments (msg_id, comment, valid, unique_id) " +
+            "VALUES (?, ?, true, ?) RETURNING comment_id";
 
         try (Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, msgId);
-            ps.setString(2, userId);
-            ps.setString(3, comment);
+            ps.setString(2, comment);
+            ps.setString(3, userId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 System.out.println(rs);
@@ -617,10 +650,10 @@ public class Database{
         ArrayList<CommentData> res = new ArrayList<>();
 
         String sql =
-            "SELECT c.comment_id, c.msg_id, c.\"username\", c.comment,c.valid ,c.upvote " +
+            "SELECT c.comment_id, c.msg_id, c.comment,c.valid ,c.upvote, c.unique_id " +
             //"       c.created_at,  u.first_name, u.last_name " +
             "FROM comments c " +
-            "JOIN \"users\" u ON c.\"username\" = u.\"username\" " +
+            "JOIN \"users\" u ON c.\"unique_id\" = u.\"unique_id\" " +
             "WHERE c.msg_id=? ORDER BY c.comment_id";
 
         try (Connection conn = getConnection();
@@ -633,13 +666,13 @@ public class Database{
                     res.add(new CommentData(
                             rs.getInt("comment_id"),
                             rs.getInt("msg_id"),
-                            rs.getString("username"),
                             rs.getString("comment"),
                             rs.getInt("upvote"),
                             //0, // upvote placeholder
                             //0, // downvote placeholder
                             //rs.getTimestamp("created_at"),
-                            rs.getBoolean("valid")
+                            rs.getBoolean("valid"),
+                            rs.getString("unique_id")
                             //rs.getString("first_name"),
                             //rs.getString("last_name")
                     ));

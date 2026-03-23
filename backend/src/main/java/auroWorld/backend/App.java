@@ -62,8 +62,9 @@ public class App
         }
     }
     private static final class CreateAccountRequest{
-        public String user;
+        public String username;
         public String email;
+        public String user_uuid;
     }
     public static final class LoginRequest {
         public String idToken;
@@ -80,18 +81,23 @@ public class App
         public String email_verified;
     }
     private static final class CreateFileRequest{
+        public String user_uuid;
         public String filename;
         public int msgId;
     }
-
+    private static final class CreateVoteRequest{
+        public String user_uuid;
+    }
     //body class for creating a new post/message
     private static final class CreateMessageRequest {
+        public String user_uuid;
         public String subject;
         public String message;
     }   
 
     //class for pulling comment body data from frontend
     private static final class CreateCommentRequest {
+        public String user_uuid;
         public String comment;
     }
 
@@ -191,16 +197,17 @@ public class App
 
             CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
 
-            if(car==null || car.email == null || car.user==null){
+            if(car==null || car.email == null || car.username==null || car.user_uuid==null){
                 System.out.println(car);
                 System.out.println(car.email);
-                System.out.println(car.user);
+                System.out.println(car.username);
+                System.out.println(car.user_uuid);
                 ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missing username or email", null)));
                 return;
             }
 
-            int result = db.insertNewAccount(car.user,car.email);
+            int result = db.insertNewAccount(car.username,car.email, car.user_uuid);
 
             System.out.println(result);
 
@@ -209,6 +216,23 @@ public class App
             }
             else{
                 ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+        });
+        app.get("/username/{uuid}", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+            System.out.println("ctx body for finding username from uuid : "+ctx.body());
+
+            String user_uuid=ctx.pathParam("uuid");
+            System.out.println("ABout to check which username is to that uuid");
+
+            String username=db.grabUsernameFromUuid(user_uuid);
+            System.out.println(username);
+            if(username==null){
+                ctx.result(gson.toJson(new StructuredResponse("cant find corresponding username",null,null)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,username)));
             }
         });
         app.get("/user_email/{email}",ctx->{
@@ -353,15 +377,15 @@ public class App
 
             CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
 
-            if (req == null || req.subject == null || req.message == null ||
+            if (req == null || req.user_uuid ==null || req.subject == null || req.message == null ||
                 req.subject.trim().isEmpty() || req.message.trim().isEmpty()) {
-
                 ctx.status(400);
                 ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing subject or message", null)));
+                        "error", "missing subject or message or uuid", null)));
                 return;
             }
-            int newId = db.insertMessage("Tester", req.subject.trim(), req.message.trim());
+            System.out.println("user_uuid="+req.user_uuid);
+            int newId = db.insertMessage(req.user_uuid, req.subject.trim(), req.message.trim());
 
             // int newId = db.insertMessage(session.userId, req.subject.trim(), req.message.trim());
 
@@ -388,14 +412,14 @@ public class App
 
             System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
 
-            if(req==null || req.filename==null || req.filename.trim().isEmpty() || req.msgId==0){
+            if(req==null || req.user_uuid ==null ||req.filename==null || req.filename.trim().isEmpty() || req.msgId==0){
                 ctx.status(400);
                 ctx.result(gson.toJson(new StructuredResponse(
                     "error","missing filename",null)));
                 return;
             }
 
-            int newId=db.insertFileToTable("alice",req.filename.trim(),req.msgId,"posts/"+req.msgId+"/"+req.filename.trim());
+            int newId=db.insertFileToTable(req.user_uuid,req.filename.trim(),req.msgId,"posts/"+req.msgId+"/"+req.filename.trim());
 
             if(newId<0){
                 ctx.status(500);
@@ -411,6 +435,23 @@ public class App
 
         });
 
+        app.get("/file/{msg_id}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int msg_id=Integer.parseInt(ctx.pathParam("msg_id"));
+            System.out.println(msg_id);
+
+            String filename=db.grabFilename(msg_id);
+
+            if(filename==null){
+                ctx.result(gson.toJson(new StructuredResponse("no filename entry for that message",null,null)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,filename)));
+            }
+        });
+
         app.post("/messages/{id}/comments", ctx -> {
             // // Require login
             SessionData session = requireSession(ctx);
@@ -423,7 +464,7 @@ public class App
             System.out.println("MESSAGE ID:"+msgId);
             CreateCommentRequest req = gson.fromJson(ctx.body(), CreateCommentRequest.class);
 
-            if (req == null || req.comment == null || req.comment.trim().isEmpty()) {
+            if (req == null || req.user_uuid==null ||req.comment == null || req.comment.trim().isEmpty()) {
                 ctx.status(400);
                 ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missing comment", null)));
@@ -431,7 +472,7 @@ public class App
             }
 
             // int newId = db.insertComment(msgId, session.userId, req.comment.trim());
-            int newId = db.insertComment(msgId, "Tester", req.comment.trim());
+            int newId = db.insertComment(msgId, req.user_uuid, req.comment.trim());
             
             if (newId < 0) {
                 ctx.status(500);
@@ -447,19 +488,24 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
 
-        // app.get("/file/{file_id}",ctx->{
-        //     ctx.status(200);
-        //     ctx.contentType("application/json");
-
-        //     int fileI
-        // });
         app.put("/vote_messages/{msg_id}", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
 
+            CreateVoteRequest cvr = gson.fromJson(ctx.body(),CreateVoteRequest.class);
+
+            if (cvr==null || cvr.user_uuid ==null){
+                ctx.status(400);
+                System.out.println("cvr:" +cvr);
+                System.out.println("cvr useruuid: "+cvr.user_uuid);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing uuid to do upvote for post", null)));
+                return;
+            }
+
             int msgId= Integer.parseInt(ctx.pathParam("msg_id"));
             
-            int result = db.voteMessageTable(msgId, "Tester", 1);
+            int result = db.voteMessageTable(msgId, cvr.user_uuid, 1);
 
             StructuredResponse resp = (result == -1)
                     ? new StructuredResponse("error", "vote failed", null)
@@ -472,9 +518,20 @@ public class App
             ctx.status(200);
             ctx.contentType("application/json");
 
+            CreateVoteRequest cvr = gson.fromJson(ctx.body(),CreateVoteRequest.class);
+
+            if (cvr==null || cvr.user_uuid ==null){
+                ctx.status(400);
+                System.out.println("cvr:" +cvr);
+                System.out.println("cvr useruuid: "+cvr.user_uuid);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing uuid to do upvote for post", null)));
+                return;
+            }
+
             int comment_id= Integer.parseInt(ctx.pathParam("comment_id"));
             
-            int result = db.voteCommentTable(comment_id, "Tester", 1);
+            int result = db.voteCommentTable(comment_id, cvr.user_uuid, 1);
 
             StructuredResponse resp = (result == -1)
                     ? new StructuredResponse("error", "comment vote failed", null)
