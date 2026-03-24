@@ -86,9 +86,6 @@ function Posts(){
     }
     async function addFileToTable(msg_id){
         try{
-            //adding to file table
-            //const { authData: userData } = await supabase.auth.getUser()
-            //const userId = userData.user.id
 
             console.log("addFileToTable msgId: "+msg_id)
             const current_uuid = await getCurrentUserId()
@@ -110,8 +107,13 @@ function Posts(){
             }
             //adding file to bucket
             //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
-            const {data} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
-            console.log(data)
+            const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
+            if(data){
+                console.log(data)
+            }
+            else{
+                console.log(error.message)
+            }
 
         }catch (error){
             console.error(error.message)
@@ -124,6 +126,7 @@ function Posts(){
     }
     async function sendEditPostButton(msg_id){
         console.log("hitting send edit post button ");
+        console.log("msg_id for editpost: "+msg_id)
         try{
             const putBody={
                 subject:document.getElementById("editTitle").value,
@@ -140,6 +143,9 @@ function Posts(){
                 alert("Edit post failed: "+data.mMessage);
                 return
             }
+            if(fileUpload){
+                editFileInTable(msg_id)
+            }
         }catch(error){
             console.error(error.message)
         }
@@ -147,9 +153,35 @@ function Posts(){
     }
     function cancelEditPostButton(){
         console.log("hitting cancel edit post button");
-        document.getElementById("editPOst").style.display="none";
+        document.getElementById("editPost").style.display="none";
     }
+    async function editFileInTable(msg_id){
+        try{
 
+            console.log("editFileInTable msgId: "+msg_id)
+            const editFileBody={
+                filename:fileUpload.name
+            }
+            const response=await fetch(`http://localhost:8080/files/${msg_id}`,{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(editFileBody)
+            });
+            const fileData = await response.json()
+            console.log("File Post response: ",fileData)
+            if (fileData.mStatus!=="ok"){
+                alert("File Post failed: "+fileData.mMessage)
+                return
+            }
+            //adding file to bucket
+            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
+            //const {data} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
+            //console.log(data)
+
+        }catch (error){
+            console.error(error.message)
+        }
+    }
     function commentButton(){
         console.log("hitting comment button");
         document.getElementById("addComment").style.display="block";
@@ -364,7 +396,6 @@ function Posts(){
                         <img
                             src={imageUrls[post.msgId]}
                             alt="Post attachment"
-                            width="200"
                         />
                     )}
 
@@ -374,7 +405,7 @@ function Posts(){
                     
                     <p>{post.upvote} Upvotes</p>
                     {currentUserId && post.uuid === currentUserId && (
-                        <button onClick={() => editPostButton(post.msg_id)}>Edit</button>
+                        <button onClick={() => editPostButton(post.msgId)}>Edit</button>
                     )}
                     <div id="editPost" style={{display:"none"}}>
                         <h3>Edit Entry</h3>
@@ -386,7 +417,7 @@ function Posts(){
                         <input type="text" id="editTitle" />
                         <textarea id="editMessage"></textarea>
                         
-                        <button onClick={sendEditPostButton}>Send</button>
+                        <button onClick={()=> sendEditPostButton(post.msgId)}>Send</button>
                         <button onClick={cancelEditPostButton}>Cancel</button>
 
                     </div>
