@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { createClient } from '@supabase/supabase-js'
+import Button from './components/Button';
+import Card from './components/Card';
 
 function Signup(){
     const navigate = useNavigate();
@@ -69,15 +71,28 @@ function Signup(){
     }
 
     return(
-        <div>
-            <h1>Welcome to Auroworld! Sign up here.</h1>
-            <label>Email</label>
-            <input type="text" id="email"/>
-            <label>Username</label>
-            <input type="text" id="username"/>
-            <label>Password</label>
-            <input type="text" id="password"/>
-            <button onClick={createAccount}>Create my Account</button>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+            <Card style={{ width: '400px' }}>
+                <h2 style={{ marginTop: 0, textAlign: 'center' }}>Welcome to Auroworld!</h2>
+                <p style={{ color: '#666', textAlign: 'center', marginBottom: '20px' }}>Sign up here.</p>
+                
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
+                    <input type="text" id="email" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}/>
+                </div>
+                
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Username</label>
+                    <input type="text" id="username" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}/>
+                </div>
+                
+                <div style={{ marginBottom: '25px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Password</label>
+                    <input type="password" id="password" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}/>
+                </div>
+                
+                <Button style={{ width: '100%' }} onClick={createAccount}>Create my Account</Button>
+            </Card>
         </div>
     );
 }
