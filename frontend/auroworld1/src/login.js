@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+//import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { GoogleLogin,googleLogout } from "@react-oauth/google";
+//import { GoogleLogin,googleLogout } from "@react-oauth/google";
+import { GoogleLogin} from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
@@ -11,9 +12,9 @@ function Login(){
     const navigate = useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
-    function handleLogout(){
-        googleLogout()
-    }
+    // function handleLogout(){
+    //     googleLogout()
+    // }
     function signup(){
         navigate("/signup")
     }

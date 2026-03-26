@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
@@ -10,17 +11,31 @@ function Posts(){
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
     //const { data: { session }, error } = await supabase.auth.getSession();
 
-    async function getCurrentUserId(){
-        const { data: { user } ,error} = await supabase.auth.getUser()
-        if(error){
-            console.log("problem grabbing uuid" +error.message)
-            return
+    // async function getCurrentUserId(){
+    //     const { data: { user } ,error} = await supabase.auth.getUser()
+    //     if(error){
+    //         console.log("problem grabbing uuid" +error.message)
+    //         return
+    //     }
+    //     else if(user){
+    //         console.log("current user's unique id: "+user.id)
+    //         return user.id
+    //     }
+    // }
+
+    const getCurrentUserId = useCallback(async () => {
+        const { data: { user }, error } = await supabase.auth.getUser();
+
+        if (error) {
+            console.log("problem grabbing uuid " + error.message);
+            return;
         }
-        else if(user){
-            console.log("current user's unique id: "+user.id)
-            return user.id
+
+        if (user) {
+            console.log("current user's unique id: " + user.id);
+            return user.id;
         }
-    }
+    }, [supabase]);
 
     function mainpageButton(){
         navigate("/posts")
@@ -255,7 +270,7 @@ function Posts(){
             setCurrentUserId(id);
         }
         fetchUserId();
-    }, []);
+    }, [getCurrentUserId]);
 
     useEffect(() => {
         fetch("http://localhost:8080/messages")
@@ -331,7 +346,7 @@ function Posts(){
 
         loadImages();
 
-    }, [posts]);
+    }, [posts, supabase]);
 
     console.log("usestate currentuserid: "+currentUserId)
    
@@ -355,7 +370,7 @@ function Posts(){
                         <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
                     </div>
 
-                    <img src={previewUrl} style={{ maxWidth: '100%', borderRadius: '8px' }}></img>
+                    <img src={previewUrl} alt="Uploaded file" style={{ maxWidth: '100%', borderRadius: '8px' }}></img>
                     {fileUpload &&(
                         <div style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
                             <p>Selected File: {fileUpload.name}</p>
@@ -415,7 +430,7 @@ function Posts(){
                                 <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
                             </div>
 
-                            <img src={fileUpload} style={{ maxWidth: '100%', borderRadius: '8px' }}></img>
+                            <img src={fileUpload} alt="Preview of uploaded file" style={{ maxWidth: '100%', borderRadius: '8px' }}></img>
 
                             <input type="text" id="editTitle" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
                             <textarea id="editMessage" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
