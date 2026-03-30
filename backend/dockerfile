@@ -22,4 +22,4 @@ COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 
 # Run the app
-CMD ["java", "-jar", "target/backend-1.0-SNAPSHOT.jar"]
+CMD ["java", "-jar", "app.jar"]
