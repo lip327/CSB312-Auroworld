@@ -217,49 +217,38 @@ public class Database{
         }
         return false;
     }
-    public int insertNewAccount(String username, String email, String uuid){
-        String sql =
-                "INSERT INTO users (username, firstname, lastname, email, role, note, unique_id)" +
-                "VALUES (?, ?, ?, ?, ?, ?) ";
-        try(Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)){
-                ps.setString(1,username);
-                ps.setString(2,"unknown");
-                ps.setString(3,"unknown");
-                ps.setString(4,email);
-                ps.setString(5,"user");
-                ps.setString(6,"");
-                ps.setString(7,uuid);
-                
-                int torf=ps.executeUpdate();
-                System.out.println(torf);
-
-                return torf;
-        }catch(SQLException e){
+    public int insertNewAccount(String username, String email, String uuid) {
+        String sql = "INSERT INTO users (username, firstname, lastname, email, role, note, unique_id) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)"; 
+        try(Connection conn = getConnection(); 
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, "unknown");
+            ps.setString(3, "unknown");
+            ps.setString(4, email);
+            ps.setString(5, "user");
+            ps.setString(6, "");
+            ps.setString(7, uuid); // CHANGE: Now correctly mapped to the 7th ?
+            return ps.executeUpdate();
+        } catch(SQLException e) {
             e.printStackTrace();
             return -1;
         }
     }
 
     // insert a new message, return msg_id 
-    public int insertMessage(String userId, String subject, String message) {
-        String sql =
-                "INSERT INTO messages (subject, message, upvote, downvote, unique_id) " +
-                "VALUES (?, ?, 0, 0, ?) " +
-                "RETURNING msg_id";
-
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
+    public int insertMessage(String uuid, String subject, String message) {
+        String sql = "INSERT INTO messages (subject, message, upvote, downvote, unique_id) " +
+                    "VALUES (?, ?, 0, 0, ?) RETURNING msg_id";
+        try (Connection conn = getConnection(); 
+            PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, subject);
             ps.setString(2, message);
-            ps.setString(3, userId);
-
+            ps.setString(3, uuid); // CHANGE: Explicitly using the UUID passed from frontend
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt("msg_id");
                 return -1;
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
             return -1;
@@ -621,24 +610,15 @@ public class Database{
     }
 
     //insert a new comment and return comment_id
-    public int insertComment(int msgId, String userId, String comment) {
-        String sql =
-            "INSERT INTO comments (msg_id, comment, valid, unique_id) " +
-            "VALUES (?, ?, true, ?) RETURNING comment_id";
-
-        try (Connection conn = getConnection();
+    public int insertComment(int msgId, String comment, String uuid) {
+        String sql = "INSERT INTO comments (msg_id, comment, unique_id, upvote, valid) " +
+                    "VALUES (?, ?, ?, 0, true)";
+        try (Connection conn = getConnection(); 
             PreparedStatement ps = conn.prepareStatement(sql)) {
-
             ps.setInt(1, msgId);
             ps.setString(2, comment);
-            ps.setString(3, userId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                System.out.println(rs);
-                if (rs.next()) return rs.getInt("comment_id");
-                return -1;
-            }
-
+            ps.setString(3, uuid); 
+            return ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
             return -1;
