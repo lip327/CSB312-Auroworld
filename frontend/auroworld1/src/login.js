@@ -57,7 +57,7 @@ function Login() {
         }
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const {  error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) {
                 if (error.message === 'Invalid login credentials') {
                     alert('Wrong email/password. Try again.');
