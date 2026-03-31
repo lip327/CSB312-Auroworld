@@ -5,6 +5,7 @@ import Posts from './posts.js'
 import Courses from './courses.js'
 import Login from './login.js'
 import Signup from './signup.js'
+import Profile from './profile.js'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { createClient } from '@supabase/supabase-js'
 
@@ -20,6 +21,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/signup" element={<Signup />}/>
         </Routes>
       </BrowserRouter>

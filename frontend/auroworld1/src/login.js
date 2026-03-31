@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin,googleLogout } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { createClient } from '@supabase/supabase-js'
+import Button from './components/Button';
+import Card from './components/Card';
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 function Login(){
@@ -59,18 +61,29 @@ function Login(){
 
     }
     return(
-        <div>
-            <GoogleLogin onSuccess={(credentialResponse)=>{
-                console.log(credentialResponse)
-                console.log(jwtDecode(credentialResponse.credential))
-                googleLoginButton(credentialResponse)
-            }} onError={()=>console.log("Login Failed")}></GoogleLogin>
-            <label>Email</label>
-            <input type="text" id="email"/>
-            <label>Password</label>
-            <input type="text" id="password"/>
-            <button onClick={userpassLoginButton}>Login</button>
-            <button onClick={signup}>Sign Up</button>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+            <Card style={{ width: '100%', maxWidth: '400px' }}>
+                <GoogleLogin onSuccess={(credentialResponse)=>{
+                    console.log(credentialResponse)
+                    console.log(jwtDecode(credentialResponse.credential))
+                    googleLoginButton(credentialResponse)
+                }} onError={()=>console.log("Login Failed")}></GoogleLogin>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '15px' }}>
+                    <label>Email</label>
+                    <input type="text" id="email" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' }}>
+                    <label>Password</label>
+                    <input type="text" id="password" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>
+                </div>
+
+                <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                    <Button onClick={userpassLoginButton}>Login</Button>
+                    <Button variant="secondary" onClick={signup}>Sign Up</Button>
+                </div>
+            </Card>
         </div>
     );
 }
