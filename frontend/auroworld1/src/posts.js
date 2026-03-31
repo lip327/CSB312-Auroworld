@@ -37,7 +37,7 @@ function Posts(){
         document.getElementById("addPost").style.display="block"
     }
 
-    // ADDED: addFileToTable to fix the 'not defined' error
+    // --- ADDED THIS TO FIX BUILD ERROR ---
     async function addFileToTable(msg_id) {
         try {
             const current_uuid = await getCurrentUserId();
@@ -51,7 +51,6 @@ function Posts(){
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(fileBody)
             });
-            
             await supabase.storage
                 .from('community_feed_file_upload')
                 .upload(`${fileUpload.name}`, fileUpload);
@@ -91,6 +90,7 @@ function Posts(){
         document.getElementById("addPost").style.display="none"
     }
 
+    // --- FIXED UNIQUE IDs FOR MODALS ---
     function editPostButton(msg_id){
         document.getElementById(`editPost-${msg_id}`).style.display="block"
     }
@@ -118,7 +118,6 @@ function Posts(){
     }
 
     function cancelEditPostButton(msg_id){
-        // FIXED: Typo from editPOst to editPost
         document.getElementById(`editPost-${msg_id}`).style.display="none"
     }
 
@@ -188,10 +187,12 @@ function Posts(){
             setPosts(data.mData || []);
 
             data.mData?.forEach(async (post) => {
+                // Fetch Comments
                 const cRes = await fetch(`https://auroworld.onrender.com/messages/${post.msgId}/comments`);
                 const cData = await cRes.json();
                 setCommentsByPost(prev => ({ ...prev, [post.msgId]: cData.mData }));
 
+                // Fetch Files - FIXED PATH
                 const fRes = await fetch(`https://auroworld.onrender.com/messages/${post.msgId}/files`);
                 const fData = await fRes.json();
                 if (fData.mData && fData.mData.length > 0) {
