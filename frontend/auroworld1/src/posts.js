@@ -14,7 +14,7 @@ function Posts() {
     const [fileUpload, setFileUpload] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [imageUrls, setImageUrls] = useState({});
-    const [fileName, setFileName] = useState("No file chosen");
+    // REMOVED unused 'fileName' to fix build error
     const [currentUserId, setCurrentUserId] = useState(null);
 
     // --- AUTH HELPER ---
@@ -38,11 +38,9 @@ function Posts() {
         if (file) {
             setFileUpload(file);
             setPreviewUrl(URL.createObjectURL(file));
-            setFileName(file.name);
         }
     }
 
-    // CHANGE: Defined addFileToTable so the build doesn't fail
     async function addFileToTable(msg_id) {
         try {
             const current_uuid = await getCurrentUserId();
@@ -66,8 +64,8 @@ function Posts() {
     }
 
     // --- POST LOGIC ---
-    const postButton = () => document.getElementById("addPost").style.display = "block";
-    const cancelPostButton = () => document.getElementById("addPost").style.display = "none";
+    const postButton = () => { document.getElementById("addPost").style.display = "block"; };
+    const cancelPostButton = () => { document.getElementById("addPost").style.display = "none"; };
 
     async function addPostButton() {
         try {
@@ -96,9 +94,8 @@ function Posts() {
     }
 
     // --- EDIT LOGIC ---
-    // CHANGE: Using msg_id to target unique elements
-    const editPostButton = (id) => document.getElementById(`editPost-${id}`).style.display = "block";
-    const cancelEditPostButton = (id) => document.getElementById(`editPost-${id}`).style.display = "none";
+    const editPostButton = (id) => { document.getElementById(`editPost-${id}`).style.display = "block"; };
+    const cancelEditPostButton = (id) => { document.getElementById(`editPost-${id}`).style.display = "none"; };
 
     async function sendEditPostButton(msg_id) {
         try {
@@ -113,13 +110,12 @@ function Posts() {
             });
             const data = await response.json();
             if (data.mStatus === "ok") window.location.reload();
-            else alert("Edit failed");
         } catch (error) { console.error(error); }
     }
 
     // --- COMMENT LOGIC ---
-    const commentButton = (id) => document.getElementById(`addComment-${id}`).style.display = "block";
-    const cancelCommentButton = (id) => document.getElementById(`addComment-${id}`).style.display = "none";
+    const commentButton = (id) => { document.getElementById(`addComment-${id}`).style.display = "block"; };
+    const cancelCommentButton = (id) => { document.getElementById(`addComment-${id}`).style.display = "none"; };
 
     async function addCommentButton(msg_id) {
         try {
@@ -138,7 +134,7 @@ function Posts() {
         } catch (error) { console.error(error); }
     }
 
-    // --- UPVOTE LOGIC (Restored) ---
+    // --- UPVOTE LOGIC ---
     async function upvotePostButton(msg_id) {
         await fetch(`https://auroworld.onrender.com/messages/${msg_id}/upvote`, { method: "PUT" });
         window.location.reload();
@@ -149,7 +145,7 @@ function Posts() {
         window.location.reload();
     }
 
-    // --- DATA FETCHING (Restored Supabase Image Logic) ---
+    // --- DATA FETCHING ---
     useEffect(() => {
         async function fetchData() {
             const id = await getCurrentUserId();
@@ -166,14 +162,14 @@ function Posts() {
                 const cData = await cRes.json();
                 setCommentsByPost(prev => ({ ...prev, [post.msgId]: cData.mData }));
 
-                // Fetch Files/Images from Supabase
+                // Fetch Files
                 const fRes = await fetch(`https://auroworld.onrender.com/messages/${post.msgId}/files`);
                 const fData = await fRes.json();
                 if (fData.mData && fData.mData.length > 0) {
-                    const fileName = fData.mData[0].filename;
+                    const fName = fData.mData[0].filename;
                     const { data: publicUrlData } = supabase.storage
                         .from('community_feed_file_upload')
-                        .getPublicUrl(`posts/${post.msgId}/${fileName}`);
+                        .getPublicUrl(`posts/${post.msgId}/${fName}`);
                     setImageUrls(prev => ({ ...prev, [post.msgId]: publicUrlData.publicUrl }));
                 }
             });
@@ -183,7 +179,6 @@ function Posts() {
 
     return (
         <div id="homepage" style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-            {/* Header / Nav */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <Button onClick={mainpageButton}>Mainpage</Button>
                 <Button onClick={coursesButton}>Courses</Button>
@@ -191,22 +186,18 @@ function Posts() {
                 <Button onClick={postButton}>Post</Button>
             </div>
 
-            {/* New Post Modal */}
             <div id="addPost" style={{ display: "none", marginBottom: '20px' }}>
                 <Card>
                     <h3>Create Post</h3>
                     <input type="file" onChange={uploadImageHandler} style={{ marginBottom: '10px' }} />
-                    {previewUrl && <img src={previewUrl} alt="Preview" style={{ width: '100px', display: 'block', marginBottom: '10px' }} />}
+                    {previewUrl && <img src={previewUrl} alt="Preview" style={{ width: '100px', marginBottom: '10px', display: 'block' }} />}
                     <input type="text" id="newTitle" placeholder="Title" style={{ width: '100%', marginBottom: '10px' }} />
                     <textarea id="newPost" placeholder="Message" style={{ width: '100%', minHeight: '80px' }} />
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <Button onClick={addPostButton}>Send</Button>
-                        <Button variant="secondary" onClick={cancelPostButton}>Cancel</Button>
-                    </div>
+                    <Button onClick={addPostButton}>Send</Button>
+                    <Button variant="secondary" onClick={cancelPostButton}>Cancel</Button>
                 </Card>
             </div>
 
-            {/* Feed List */}
             <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {posts.map((post) => (
                     <Card key={post.msgId}>
@@ -215,6 +206,7 @@ function Posts() {
                         )}
                         <h2>{post.subject}</h2>
                         <p>{post.message}</p>
+                        <p>By {post.username || "Anonymous"}</p>
                         <p><b>{post.upvote} Upvotes</b></p>
                         
                         <div style={{ display: 'flex', gap: '10px' }}>
@@ -225,7 +217,6 @@ function Posts() {
                             )}
                         </div>
 
-                        {/* Edit Section */}
                         <div id={`editPost-${post.msgId}`} style={{ display: 'none', marginTop: '15px' }}>
                             <Card variant="dark">
                                 <input type="text" id={`editTitle-${post.msgId}`} defaultValue={post.subject} style={{ width: '100%' }} />
@@ -235,18 +226,16 @@ function Posts() {
                             </Card>
                         </div>
 
-                        {/* Comment Section */}
                         <div id={`addComment-${post.msgId}`} style={{ display: 'none', marginTop: '15px' }}>
                             <textarea id={`newComment-${post.msgId}`} placeholder="Write a comment..." style={{ width: '100%' }} />
                             <Button onClick={() => addCommentButton(post.msgId)}>Post Comment</Button>
                             <Button variant="secondary" onClick={() => cancelCommentButton(post.msgId)}>Cancel</Button>
                         </div>
 
-                        {/* Comments Display */}
-                        <div style={{ marginTop: '15px', borderTop: '1px solid #eee' }}>
+                        <div style={{ marginTop: '15px' }}>
                             {commentsByPost[post.msgId]?.map((c, idx) => (
-                                <div key={idx} style={{ background: '#f9f9f9', padding: '10px', marginTop: '5px', borderRadius: '5px' }}>
-                                    <p style={{ margin: 0 }}>{c.comment}</p>
+                                <div key={idx} style={{ background: '#f9f9f9', padding: '10px', marginTop: '5px' }}>
+                                    <p>{c.comment}</p>
                                     <small>Upvotes: {c.upvote} <span style={{ cursor: 'pointer' }} onClick={() => upvoteCommentButton(c.commentId)}>⬆️</span></small>
                                 </div>
                             ))}
