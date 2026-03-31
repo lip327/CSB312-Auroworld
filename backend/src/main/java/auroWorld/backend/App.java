@@ -330,6 +330,17 @@ public class App {
             }
         });
 
+        // DELETE /messages/{id} — delete a post
+        app.delete("/messages/{id}", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+            int msgId  = Integer.parseInt(ctx.pathParam("id"));
+            int result = db.deletePost(msgId);
+            ctx.result(gson.toJson(result <= 0
+                ? new StructuredResponse("error", "delete failed", null)
+                : new StructuredResponse("ok", null, "deleted")));
+        });
+
         /* ------------------------------------------------------------------ */
         /*  COMMENT ROUTES                                                      */
         /* ------------------------------------------------------------------ */
@@ -370,6 +381,17 @@ public class App {
             payload.put("commentId", newId);
             ctx.status(201);
             ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+        });
+
+        // DELETE /comments/{comment_id} — delete a comment
+        app.delete("/comments/{comment_id}", ctx -> {
+            ctx.status(200);
+            ctx.contentType("application/json");
+            int commentId = Integer.parseInt(ctx.pathParam("comment_id"));
+            int result    = db.deleteComment(commentId);
+            ctx.result(gson.toJson(result <= 0
+                ? new StructuredResponse("error", "delete failed", null)
+                : new StructuredResponse("ok", null, "deleted")));
         });
 
         /* ------------------------------------------------------------------ */

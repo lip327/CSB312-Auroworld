@@ -351,6 +351,30 @@ public class Database {
         return res;
     }
 
+    public int deletePost(int msgId) {
+        String sql = "DELETE FROM messages WHERE msg_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, msgId);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int deleteComment(int commentId) {
+        String sql = "DELETE FROM comments WHERE comment_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, commentId);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
     /* -------------------------------------------------------------
      *                        FILE METHODS
      * ------------------------------------------------------------- */

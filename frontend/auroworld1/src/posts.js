@@ -1,50 +1,82 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Button from './components/Button';
 import Card from './components/Card';
 
 const supabase = createClient(
-    process.env.REACT_APP_SUPABASE_URL     || 'https://rduempiojxizkwwbzaml.supabase.co',
+    process.env.REACT_APP_SUPABASE_URL      || 'https://rduempiojxizkwwbzaml.supabase.co',
     process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
 );
 
 const API = 'https://auroworld.onrender.com';
 
-// Spinner shown inside buttons while an action is in-flight
+// Inject spinner keyframe once
+if (!document.getElementById('spin-style')) {
+    const s = document.createElement('style');
+    s.id = 'spin-style';
+    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+}
+
 function Spinner() {
     return (
         <span style={{
-            display: 'inline-block',
-            width: '12px',
-            height: '12px',
-            border: '2px solid currentColor',
-            borderTopColor: 'transparent',
-            borderRadius: '50%',
-            animation: 'spin 0.6s linear infinite',
-            marginRight: '6px',
-            verticalAlign: 'middle',
+            display: 'inline-block', width: '12px', height: '12px',
+            border: '2px solid currentColor', borderTopColor: 'transparent',
+            borderRadius: '50%', animation: 'spin 0.6s linear infinite',
+            marginRight: '6px', verticalAlign: 'middle',
         }} />
     );
 }
 
-// Wrapper that injects the keyframe animation once
-const spinStyle = document.createElement('style');
-spinStyle.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-document.head.appendChild(spinStyle);
+// Styled file picker — hides the ugly default input
+function FilePicker({ onFile, file }) {
+    const ref = useRef();
+    return (
+        <div style={{ marginBottom: '10px' }}>
+            <input
+                ref={ref}
+                type="file"
+                accept="image/*"
+                onChange={e => onFile(e.target.files[0] || null)}
+                style={{ display: 'none' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                    type="button"
+                    onClick={() => ref.current.click()}
+                    style={{
+                        padding: '7px 16px', borderRadius: '999px', border: '1.5px solid #3b3b3b',
+                        background: 'transparent', color: '#3b3b3b', fontSize: '13px',
+                        fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                    }}
+                >
+                    📎 {file ? 'Change Image' : 'Attach Image'}
+                </button>
+                {file && (
+                    <span style={{ fontSize: '13px', color: '#555', maxWidth: '200px',
+                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {file.name}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function Posts() {
     const navigate = useNavigate();
 
     const getCurrentUserId = useCallback(async () => {
         const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) { console.error('getUser error:', error.message); return null; }
+        if (error) { console.error('getUser:', error.message); return null; }
         return user ? user.id : null;
     }, []);
 
     // ── nav ───────────────────────────────────────────────────────────────────
-    function mainpageButton()  { navigate('/posts'); }
-    function coursesButton()   { navigate('/courses'); }
+    function mainpageButton() { navigate('/posts'); }
+    function coursesButton()  { navigate('/courses'); }
     async function signoutButton() {
         const { error } = await supabase.auth.signOut();
         if (!error) navigate('/login');
@@ -58,21 +90,18 @@ function Posts() {
     const [fileUpload,     setFileUpload]      = useState(null);
     const [previewUrl,     setPreviewUrl]      = useState(null);
 
-    // loading flags — keyed by action string so each button is independent
-    const [loading, setLoading] = useState({});
-    const setLoad  = (key, val) => setLoading(prev => ({ ...prev, [key]: val }));
+    const [loading,  setLoading]  = useState({});
+    const setLoad   = (key, val) => setLoading(prev => ({ ...prev, [key]: val }));
     const isLoading = (key) => !!loading[key];
 
-    // visibility flags for inline forms
     const [showAddPost,    setShowAddPost]    = useState(false);
-    const [showEditPost,   setShowEditPost]   = useState({});  // { [msgId]: bool }
-    const [showAddComment, setShowAddComment] = useState({});  // { [msgId]: bool }
+    const [showEditPost,   setShowEditPost]   = useState({});
+    const [showAddComment, setShowAddComment] = useState({});
 
-    // controlled inputs — avoids direct DOM getElementById
-    const [newTitle,   setNewTitle]   = useState('');
-    const [newPost,    setNewPost]    = useState('');
-    const [editInputs, setEditInputs] = useState({});   // { [msgId]: { subject, message } }
-    const [commentInputs, setCommentInputs] = useState({}); // { [msgId]: string }
+    const [newTitle,      setNewTitle]      = useState('');
+    const [newPost,       setNewPost]       = useState('');
+    const [editInputs,    setEditInputs]    = useState({});
+    const [commentInputs, setCommentInputs] = useState({});
 
     // ── data loading ──────────────────────────────────────────────────────────
     const loadPosts = useCallback(async () => {
@@ -82,7 +111,6 @@ function Posts() {
             const msgs = data.mData || [];
             setPosts(msgs);
 
-            // fetch comments + files for all posts in parallel
             await Promise.all(msgs.map(async (post) => {
                 // comments
                 try {
@@ -91,15 +119,16 @@ function Posts() {
                     setCommentsByPost(prev => ({ ...prev, [post.msgId]: cData.mData || [] }));
                 } catch (e) { console.error('comments fetch error:', e); }
 
-                // files — FIX: was hitting wrong endpoint and crashing
+                // FIX: use filepath ("posts/40/img.png") not just filename ("img.png")
+                // The file is stored at posts/{msgId}/{filename} in Supabase storage
                 try {
                     const fRes  = await fetch(`${API}/messages/${post.msgId}/files`);
                     const fData = await fRes.json();
                     if (fData.mData && fData.mData.length > 0) {
-                        const fName = fData.mData[0].filename;
+                        const filepath = fData.mData[0].filepath;
                         const { data: urlData } = supabase.storage
                             .from('community_feed_file_upload')
-                            .getPublicUrl(fName);
+                            .getPublicUrl(filepath);
                         setImageUrls(prev => ({ ...prev, [post.msgId]: urlData.publicUrl }));
                     }
                 } catch (e) { console.error('files fetch error:', e); }
@@ -118,35 +147,33 @@ function Posts() {
         init();
     }, [getCurrentUserId, loadPosts]);
 
-    // ── add post ──────────────────────────────────────────────────────────────
-    function uploadImageHandler(e) {
-        const file = e.target.files[0];
-        if (file) {
-            setFileUpload(file);
-            setPreviewUrl(URL.createObjectURL(file));
-        }
+    // ── file picker ───────────────────────────────────────────────────────────
+    function handleFileChange(file) {
+        setFileUpload(file);
+        setPreviewUrl(file ? URL.createObjectURL(file) : null);
     }
 
+    // ── add post ──────────────────────────────────────────────────────────────
     async function addPostButton() {
         if (isLoading('addPost')) return;
         setLoad('addPost', true);
         try {
             const uuid = await getCurrentUserId();
-            const postBody = { subject: newTitle, message: newPost, user_uuid: uuid };
             const res  = await fetch(`${API}/messages`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(postBody),
+                body:    JSON.stringify({ subject: newTitle, message: newPost, user_uuid: uuid }),
             });
             const data = await res.json();
             if (data.mStatus !== 'ok') { alert('Post failed: ' + data.mMessage); return; }
 
-            // upload file if one was selected
             if (fileUpload) {
-                const msgId = data.mData.msgId;
+                const msgId    = data.mData.msgId;
+                const filepath = `posts/${msgId}/${fileUpload.name}`;
+                // FIX: upload to the correct path that matches what DB stores
                 await supabase.storage
                     .from('community_feed_file_upload')
-                    .upload(fileUpload.name, fileUpload);
+                    .upload(filepath, fileUpload);
                 await fetch(`${API}/files`, {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -154,10 +181,8 @@ function Posts() {
                 });
             }
 
-            setNewTitle('');
-            setNewPost('');
-            setFileUpload(null);
-            setPreviewUrl(null);
+            setNewTitle(''); setNewPost('');
+            setFileUpload(null); setPreviewUrl(null);
             setShowAddPost(false);
             await loadPosts();
         } catch (e) {
@@ -167,13 +192,30 @@ function Posts() {
         }
     }
 
+    // ── delete post ───────────────────────────────────────────────────────────
+    async function deletePostButton(msgId) {
+        if (!window.confirm('Are you sure you want to delete this post?')) return;
+        const key = `delete-post-${msgId}`;
+        if (isLoading(key)) return;
+        setLoad(key, true);
+        try {
+            const res  = await fetch(`${API}/messages/${msgId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.mStatus !== 'ok') { alert('Delete failed: ' + data.mMessage); return; }
+            await loadPosts();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoad(key, false);
+        }
+    }
+
     // ── edit post ─────────────────────────────────────────────────────────────
     function openEditPost(post) {
         setEditInputs(prev => ({ ...prev, [post.msgId]: { subject: post.subject, message: post.message } }));
         setShowEditPost(prev => ({ ...prev, [post.msgId]: true }));
     }
 
-    // FIX: PUT /messages/{id} route now exists in backend
     async function sendEditPostButton(msgId) {
         const key = `edit-${msgId}`;
         if (isLoading(key)) return;
@@ -196,8 +238,7 @@ function Posts() {
         }
     }
 
-    // ── comments ──────────────────────────────────────────────────────────────
-    // FIX: now sends user_uuid in body (backend requires it)
+    // ── add comment ───────────────────────────────────────────────────────────
     async function addCommentButton(msgId) {
         const key = `comment-${msgId}`;
         if (isLoading(key)) return;
@@ -222,8 +263,25 @@ function Posts() {
         }
     }
 
+    // ── delete comment ────────────────────────────────────────────────────────
+    async function deleteCommentButton(commentId) {
+        if (!window.confirm('Delete this comment?')) return;
+        const key = `delete-comment-${commentId}`;
+        if (isLoading(key)) return;
+        setLoad(key, true);
+        try {
+            const res  = await fetch(`${API}/comments/${commentId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.mStatus !== 'ok') { alert('Delete failed: ' + data.mMessage); return; }
+            await loadPosts();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoad(key, false);
+        }
+    }
+
     // ── upvoting ──────────────────────────────────────────────────────────────
-    // FIX: now sends user_uuid in request body — backend requires it
     async function upvotePostButton(msgId) {
         const key = `upvote-post-${msgId}`;
         if (isLoading(key)) return;
@@ -266,7 +324,7 @@ function Posts() {
     return (
         <div id="homepage" style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
 
-            {/* Nav bar */}
+            {/* Nav */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <Button onClick={mainpageButton}>Mainpage</Button>
                 <Button onClick={coursesButton}>Courses</Button>
@@ -280,26 +338,23 @@ function Posts() {
             {showAddPost && (
                 <Card style={{ marginBottom: '20px' }}>
                     <h3 style={{ marginTop: 0 }}>Add a New Entry</h3>
-                    <input type="file" onChange={uploadImageHandler} style={{ marginBottom: '10px' }} />
+                    <FilePicker file={fileUpload} onFile={handleFileChange} />
                     {previewUrl && (
                         <img src={previewUrl} alt="Preview"
-                             style={{ width: '100px', display: 'block', marginBottom: '10px' }} />
+                             style={{ width: '120px', height: '120px', objectFit: 'cover',
+                                      borderRadius: '8px', display: 'block', marginBottom: '10px' }} />
                     )}
                     <input
-                        type="text"
-                        placeholder="Title"
-                        value={newTitle}
+                        type="text" placeholder="Title" value={newTitle}
                         onChange={e => setNewTitle(e.target.value)}
                         style={{ width: '100%', marginBottom: '10px', padding: '10px',
                                  borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                     />
                     <textarea
-                        placeholder="What's on your mind?"
-                        value={newPost}
+                        placeholder="What's on your mind?" value={newPost}
                         onChange={e => setNewPost(e.target.value)}
-                        style={{ width: '100%', minHeight: '80px', padding: '10px',
-                                 borderRadius: '8px', border: '1px solid #ccc',
-                                 marginBottom: '10px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px',
+                                 border: '1px solid #ccc', marginBottom: '10px', boxSizing: 'border-box' }}
                     />
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <Button onClick={addPostButton} disabled={isLoading('addPost')}>
@@ -314,7 +369,6 @@ function Posts() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {posts.map((post) => (
                     <Card key={post.msgId}>
-                        {/* Post image */}
                         {imageUrls[post.msgId] && (
                             <img src={imageUrls[post.msgId]} alt="Post"
                                  style={{ width: '100%', borderRadius: '8px', marginBottom: '15px' }} />
@@ -322,68 +376,61 @@ function Posts() {
 
                         <h2 style={{ marginTop: 0 }}>{post.subject}</h2>
                         <label style={{ display: 'block', marginBottom: '10px' }}>{post.message}</label>
-
-                        {/* FIX: show username — backend now joins users table and returns it */}
                         <p style={{ fontSize: '14px', color: '#555', margin: '0 0 6px' }}>
                             Posted by <strong>{post.username || 'Anonymous'}</strong>
                         </p>
                         <p style={{ margin: '0 0 12px' }}><b>{post.upvote} Upvotes</b></p>
 
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            <Button
-                                variant="secondary"
-                                disabled={isLoading(`upvote-post-${post.msgId}`)}
-                                onClick={() => upvotePostButton(post.msgId)}
-                            >
+                            <Button variant="secondary"
+                                    disabled={isLoading(`upvote-post-${post.msgId}`)}
+                                    onClick={() => upvotePostButton(post.msgId)}>
                                 {isLoading(`upvote-post-${post.msgId}`) && <Spinner />} ⬆️ Upvote
                             </Button>
-                            <Button
-                                variant="secondary"
-                                onClick={() => setShowAddComment(prev => ({ ...prev, [post.msgId]: true }))}
-                            >
+                            <Button variant="secondary"
+                                    onClick={() => setShowAddComment(prev => ({ ...prev, [post.msgId]: true }))}>
                                 Comment
                             </Button>
-                            {/* FIX: currentUserId vs post.uuid — both now come from the same source */}
                             {currentUserId === post.uuid && (
-                                <Button variant="secondary" onClick={() => openEditPost(post)}>Edit</Button>
+                                <>
+                                    <Button variant="secondary" onClick={() => openEditPost(post)}>
+                                        Edit
+                                    </Button>
+                                    <Button variant="secondary"
+                                            disabled={isLoading(`delete-post-${post.msgId}`)}
+                                            onClick={() => deletePostButton(post.msgId)}
+                                            style={{ color: '#c0392b' }}>
+                                        {isLoading(`delete-post-${post.msgId}`) && <Spinner />} 🗑 Delete
+                                    </Button>
+                                </>
                             )}
                         </div>
 
-                        {/* Edit post form */}
+                        {/* Edit form */}
                         {showEditPost[post.msgId] && (
                             <Card variant="dark" style={{ marginTop: '15px' }}>
                                 <h3 style={{ marginTop: 0 }}>Edit Entry</h3>
-                                <input
-                                    type="text"
-                                    value={editInputs[post.msgId]?.subject || ''}
-                                    onChange={e => setEditInputs(prev => ({
-                                        ...prev,
-                                        [post.msgId]: { ...prev[post.msgId], subject: e.target.value }
-                                    }))}
-                                    style={{ width: '100%', padding: '8px', borderRadius: '4px',
-                                             border: '1px solid #ccc', boxSizing: 'border-box' }}
-                                />
+                                <input type="text"
+                                       value={editInputs[post.msgId]?.subject || ''}
+                                       onChange={e => setEditInputs(prev => ({
+                                           ...prev, [post.msgId]: { ...prev[post.msgId], subject: e.target.value }
+                                       }))}
+                                       style={{ width: '100%', padding: '8px', borderRadius: '4px',
+                                                border: '1px solid #ccc', boxSizing: 'border-box' }} />
                                 <textarea
                                     value={editInputs[post.msgId]?.message || ''}
                                     onChange={e => setEditInputs(prev => ({
-                                        ...prev,
-                                        [post.msgId]: { ...prev[post.msgId], message: e.target.value }
+                                        ...prev, [post.msgId]: { ...prev[post.msgId], message: e.target.value }
                                     }))}
-                                    style={{ width: '100%', marginTop: '10px', minHeight: '60px',
-                                             padding: '8px', borderRadius: '4px', border: '1px solid #ccc',
-                                             boxSizing: 'border-box' }}
-                                />
+                                    style={{ width: '100%', marginTop: '10px', minHeight: '60px', padding: '8px',
+                                             borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
                                 <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                                    <Button
-                                        disabled={isLoading(`edit-${post.msgId}`)}
-                                        onClick={() => sendEditPostButton(post.msgId)}
-                                    >
+                                    <Button disabled={isLoading(`edit-${post.msgId}`)}
+                                            onClick={() => sendEditPostButton(post.msgId)}>
                                         {isLoading(`edit-${post.msgId}`) && <Spinner />} Save
                                     </Button>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => setShowEditPost(prev => ({ ...prev, [post.msgId]: false }))}
-                                    >
+                                    <Button variant="secondary"
+                                            onClick={() => setShowEditPost(prev => ({ ...prev, [post.msgId]: false }))}>
                                         Cancel
                                     </Button>
                                 </div>
@@ -396,32 +443,23 @@ function Posts() {
                                 <textarea
                                     placeholder="Write a comment..."
                                     value={commentInputs[post.msgId] || ''}
-                                    onChange={e => setCommentInputs(prev => ({
-                                        ...prev, [post.msgId]: e.target.value
-                                    }))}
+                                    onChange={e => setCommentInputs(prev => ({ ...prev, [post.msgId]: e.target.value }))}
                                     style={{ width: '100%', padding: '8px', borderRadius: '4px',
-                                             border: '1px solid #ccc', boxSizing: 'border-box' }}
-                                />
+                                             border: '1px solid #ccc', boxSizing: 'border-box' }} />
                                 <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                                    <Button
-                                        disabled={isLoading(`comment-${post.msgId}`)}
-                                        onClick={() => addCommentButton(post.msgId)}
-                                    >
+                                    <Button disabled={isLoading(`comment-${post.msgId}`)}
+                                            onClick={() => addCommentButton(post.msgId)}>
                                         {isLoading(`comment-${post.msgId}`) && <Spinner />} Send
                                     </Button>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => setShowAddComment(prev => ({
-                                            ...prev, [post.msgId]: false
-                                        }))}
-                                    >
+                                    <Button variant="secondary"
+                                            onClick={() => setShowAddComment(prev => ({ ...prev, [post.msgId]: false }))}>
                                         Cancel
                                     </Button>
                                 </div>
                             </Card>
                         )}
 
-                        {/* Comments list */}
+                        {/* Comments */}
                         {commentsByPost[post.msgId]?.length > 0 && (
                             <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
                                 {commentsByPost[post.msgId].map((comment) => (
@@ -431,15 +469,21 @@ function Posts() {
                                         <label style={{ display: 'block', marginBottom: '5px' }}>
                                             {comment.comment}
                                         </label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                             <small>Upvotes: {comment.upvote}</small>
-                                            <Button
-                                                variant="secondary"
-                                                disabled={isLoading(`upvote-comment-${comment.commentId}`)}
-                                                onClick={() => upvoteCommentButton(comment.commentId)}
-                                            >
+                                            <Button variant="secondary"
+                                                    disabled={isLoading(`upvote-comment-${comment.commentId}`)}
+                                                    onClick={() => upvoteCommentButton(comment.commentId)}>
                                                 {isLoading(`upvote-comment-${comment.commentId}`) && <Spinner />} ⬆️
                                             </Button>
+                                            {currentUserId === comment.uuid && (
+                                                <Button variant="secondary"
+                                                        disabled={isLoading(`delete-comment-${comment.commentId}`)}
+                                                        onClick={() => deleteCommentButton(comment.commentId)}
+                                                        style={{ color: '#c0392b', fontSize: '12px' }}>
+                                                    {isLoading(`delete-comment-${comment.commentId}`) && <Spinner />} 🗑
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
