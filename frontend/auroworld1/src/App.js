@@ -7,6 +7,7 @@ import Login from './login.js'
 import Signup from './signup.js'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { createClient } from '@supabase/supabase-js'
+import Calendar from './Calendar.js';
 
 
 const GOOGLE_CLIENT_ID="134970251770-d7nviqn0qn0p0qpll7ru770kf2ntqu1h.apps.googleusercontent.com"
@@ -21,6 +22,7 @@ function App() {
           <Route path="/posts" element={<Posts />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/signup" element={<Signup />}/>
+          <Route path="/calendar" element={<Calendar />} />
         </Routes>
       </BrowserRouter>
     </GoogleOAuthProvider>
