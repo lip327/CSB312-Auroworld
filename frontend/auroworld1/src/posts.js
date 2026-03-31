@@ -74,7 +74,7 @@ function Posts(){
                 message: document.getElementById("newPost").value,
                 user_uuid: current_uuid
             };
-            const response = await fetch("http://localhost:8080/messages", {
+            const response = await fetch(" https://auroworld.onrender.com/messages", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(postBody)
@@ -114,7 +114,7 @@ function Posts(){
                 msgId:msg_id,
                 user_uuid:current_uuid
             }
-            const response=await fetch("http://localhost:8080/files",{
+            const response=await fetch(" https://auroworld.onrender.com/files",{
                 method:"POST",
                 headers:{"Content-Type":"application/json"},
                 body: JSON.stringify(fileBody)
@@ -146,7 +146,7 @@ function Posts(){
                 subject:document.getElementById("editTitle").value,
                 message:document.getElementById("editMessage").value,
             };
-            const response = await fetch(`http://localhost:8080/messages/${msg_id}`, {
+            const response = await fetch(` https://auroworld.onrender.com/messages/${msg_id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(putBody)
@@ -179,7 +179,7 @@ function Posts(){
                 user_uuid:current_uuid,
                 comment:document.getElementById("newComment").value
             }
-            const res = await fetch(`http://localhost:8080/messages/${msg_id}/comments`,{
+            const res = await fetch(` https://auroworld.onrender.com/messages/${msg_id}/comments`,{
                 method:"POST",
                 headers:{"Content-Type":"application/json"},
                 body: JSON.stringify(commBody)
@@ -203,7 +203,7 @@ function Posts(){
             const stuff ={
                 user_uuid:current_uuid,
             }
-            const res = await fetch(`http://localhost:8080/vote_messages/${msg_id}`,{
+            const res = await fetch(` https://auroworld.onrender.com/vote_messages/${msg_id}`,{
                 method:"PUT",
                 headers:{"Content-Type":"application/json"},
                 body: JSON.stringify(stuff)
@@ -224,7 +224,7 @@ function Posts(){
             const stuff ={
                 user_uuid:current_uuid,
             }
-            const res=await fetch(`http://localhost:8080/vote_comments/${comment_id}`,{
+            const res=await fetch(` https://auroworld.onrender.com/vote_comments/${comment_id}`,{
                 method:"PUT",
                 headers:{"Content-Type":"application/json"},
                 body: JSON.stringify(stuff)
@@ -273,7 +273,7 @@ function Posts(){
     }, [getCurrentUserId]);
 
     useEffect(() => {
-        fetch("http://localhost:8080/messages")
+        fetch(" https://auroworld.onrender.com/messages")
         .then(res => res.json())
         .then(data => {
             console.log("FULL RESPONSE:", data)
@@ -281,7 +281,7 @@ function Posts(){
             setPosts(data.mData);
             // console.log(data.mData.msg_id)
             data.mData.forEach(post => {
-                fetch(`http://localhost:8080/messages/${post.msgId}/comments`)
+                fetch(` https://auroworld.onrender.com/messages/${post.msgId}/comments`)
                     .then(res => res.json())
                     .then(commentData => {
                         console.log("FULL RESPONSE FOR COMMENT GETTER:",commentData)
@@ -305,7 +305,7 @@ function Posts(){
                     console.log("retrieving image for post", post.msgId);
 
                     const filename_res = await fetch(
-                        `http://localhost:8080/file/${post.msgId}`
+                        ` https://auroworld.onrender.com/file/${post.msgId}`
                     );
 
                     const filename = await filename_res.json();

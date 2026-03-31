@@ -22,7 +22,7 @@ function Login(){
     async function googleLoginButton(credentialResponse) {
         const idToken=credentialResponse.credential
         try{
-            const response = await fetch("http://localhost:8080/auth/login", {
+            const response = await fetch(" https://auroworld.onrender.com/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ idToken })

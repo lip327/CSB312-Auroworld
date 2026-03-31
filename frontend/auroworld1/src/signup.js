@@ -13,7 +13,7 @@ function Signup(){
         try{
             console.log("checking username valid")
 
-            const user_res =await fetch(`http://localhost:8080/user_username/${document.getElementById("username").value}`)
+            const user_res =await fetch(` https://auroworld.onrender.com/user_username/${document.getElementById("username").value}`)
             const user_data = await user_res.json();
             console.log("Check user response:",user_data)
 
@@ -23,7 +23,7 @@ function Signup(){
             }
 
             console.log("checking email validity")
-            const email_res =await fetch(`http://localhost:8080/user_email/${document.getElementById("email").value}`)
+            const email_res =await fetch(` https://auroworld.onrender.com/user_email/${document.getElementById("email").value}`)
             const email_data = await email_res.json();
             console.log("Check email response:",email_data)
 
@@ -48,7 +48,7 @@ function Signup(){
                 username:document.getElementById("username").value
             }
 
-            const create_res=await fetch("http://localhost:8080/newuser",{
+            const create_res=await fetch("https://auroworld.onrender.com/newuser",{
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(account_vals)
