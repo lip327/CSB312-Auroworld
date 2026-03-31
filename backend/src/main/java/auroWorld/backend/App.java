@@ -363,44 +363,57 @@ public class App
 
             ctx.result(gson.toJson(resp));
         });
-
+        
         app.post("/messages", ctx -> {
-            SessionData session = requireSession(ctx);
-            // // if (session == null) return;   // requireSession already sends error JSON
-            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
-            // if(userId==null){
-            //     return;
-            // }
-
-            ctx.contentType("application/json");
-
-            CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
-
-            if (req == null || req.user_uuid ==null || req.subject == null || req.message == null ||
-                req.subject.trim().isEmpty() || req.message.trim().isEmpty()) {
-                ctx.status(400);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing subject or message or uuid", null)));
-                return;
+            CreateMessageRequest cmr = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+            /* CHANGE: Passing cmr.user_uuid specifically to insertMessage */
+            int msgId = db.insertMessage(cmr.user_uuid, cmr.subject, cmr.message);
+            
+            if (msgId == -1) {
+                ctx.result(gson.toJson(new StructuredResponse("error", "post failed", null)));
+            } else {
+                Map<String, Integer> data = new HashMap<>();
+                data.put("msgId", msgId);
+                ctx.result(gson.toJson(new StructuredResponse("ok", null, data)));
             }
-            System.out.println("user_uuid="+req.user_uuid);
-            int newId = db.insertMessage(req.user_uuid, req.subject.trim(), req.message.trim());
-
-            // int newId = db.insertMessage(session.userId, req.subject.trim(), req.message.trim());
-
-            if (newId < 0) {
-                ctx.status(500);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "failed to create message", null)));
-                return;
-            }
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("msgId", newId);
-
-            ctx.status(201);
-            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
         });
+        // app.post("/messages", ctx -> {
+        //     SessionData session = requireSession(ctx);
+        //     // // if (session == null) return;   // requireSession already sends error JSON
+        //     // String userId = cache.get(ctx.header("X-Session-Token")).toString();
+        //     // if(userId==null){
+        //     //     return;
+        //     // }
+
+        //     ctx.contentType("application/json");
+
+        //     CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+
+        //     if (req == null || req.user_uuid ==null || req.subject == null || req.message == null ||
+        //         req.subject.trim().isEmpty() || req.message.trim().isEmpty()) {
+        //         ctx.status(400);
+        //         ctx.result(gson.toJson(new StructuredResponse(
+        //                 "error", "missing subject or message or uuid", null)));
+        //         return;
+        //     }
+        //     System.out.println("user_uuid="+req.user_uuid);
+        //     int newId = db.insertMessage(req.user_uuid, req.subject.trim(), req.message.trim());
+
+        //     // int newId = db.insertMessage(session.userId, req.subject.trim(), req.message.trim());
+
+        //     if (newId < 0) {
+        //         ctx.status(500);
+        //         ctx.result(gson.toJson(new StructuredResponse(
+        //                 "error", "failed to create message", null)));
+        //         return;
+        //     }
+
+        //     Map<String, Object> payload = new HashMap<>();
+        //     payload.put("msgId", newId);
+
+        //     ctx.status(201);
+        //     ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+        // });
 
         app.post("/files", ctx->{
             SessionData session = requireSession(ctx);
