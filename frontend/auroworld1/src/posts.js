@@ -30,6 +30,9 @@ function Posts(){
     function coursesButton(){
         navigate("/courses")
     }
+    function signinButton(){
+        navigate("/login")
+    }
     async function signoutButton(){
         const { error } = await supabase.auth.signOut();
         if (!error) {
@@ -261,13 +264,61 @@ function Posts(){
         console.log("hitting cancel comment button");
         document.getElementById("addComment").style.display="none";
     }
+
     const [posts, setPosts] = useState([])
-    const [commentsByPost,setCommentsByPost]=useState([])
+
+    useEffect(() => {
+        async function gatherMyPosts(){
+            const userId = await getCurrentUserId()
+            console.log("userId is: "+userId)
+            fetch(`http://localhost:8080/messages2`)
+            .then(res => res.json())
+            .then(data => {
+                console.log("FULL RESPONSE:", data)
+                console.log("Posts mData:", data.mData)
+                setPosts(data.mData);
+            })
+            .catch(err => console.error("FETCH ERROR for getting posts:", err))
+        }
+        gatherMyPosts()
+    
+    }, []);
+
+    const [imageUrls, setImageUrls] = useState({});
+
+    useEffect(() =>{
+        async function loadImages(){
+            if(!posts) return
+            const newUrls={}
+
+            for (const post of posts) {
+                try{
+                    const { data} = supabase.storage
+                        .from('community_feed_file_upload')
+                        .getPublicUrl(
+                            post.filepath
+                        );
+                    console.log("data from community_feed: ",data)
+                    if (data && data.publicUrl) {
+                        console.log('Public URL:', data.publicUrl);
+                    } else {
+                        console.error('Error getting public URL or URL is undefined');
+                    }
+                    
+                    newUrls[post.msgId] = data.publicUrl;
+
+                }catch(err){
+                    console.error(err)
+                    newUrls[post.msgId]=null
+                }
+            }
+            setImageUrls(newUrls);
+        }
+        loadImages()
+    },[posts])
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
-
-    const [imageUrls, setImageUrls] = useState({});
 
     const [fileName, setFileName] = useState("No file chosen");
 
@@ -291,96 +342,46 @@ function Posts(){
         fetchUserId();
     }, []);
 
-    useEffect(() => {
-        fetch("http://localhost:8080/messages")
-        .then(res => res.json())
-        .then(data => {
-            console.log("FULL RESPONSE:", data)
-            console.log("Posts mData:", data.mData)
-            setPosts(data.mData);
-            // console.log(data.mData.msg_id)
-            data.mData.forEach(post => {
-                fetch(`http://localhost:8080/messages/${post.msgId}/comments`)
-                    .then(res => res.json())
-                    .then(commentData => {
-                        console.log("FULL RESPONSE FOR COMMENT GETTER:",commentData)
-                        console.log("Comment mData:",commentData.mData)
-                        setCommentsByPost(prev => ({
-                            ...prev,
-                            [post.msgId]: commentData.mData
-                        }));
-                    });
-            });
-        })
-        .catch(err => console.error("FETCH ERROR for getting posts:", err))
-    }, []);
+    const [data, setData] = useState([]);
+    const [sortType, setSortType] = useState('msgId');
 
     useEffect(() => {
-        async function loadImages() {
-            if (!posts) return;
-            const newUrls = {};
-            for (const post of posts) {
-                try {
-                    console.log("retrieving image for post", post.msgId);
-
-                    const filename_res = await fetch(
-                        `http://localhost:8080/file/${post.msgId}`
-                    );
-
-                    const filename = await filename_res.json();
-
-                    console.log("does file exist: "+filename.mData)
-
-                    if (filename.mStatus !== "ok") {
-                        newUrls[post.msg_id] = null;
-                        continue;
-                    }
-                    const { data} = supabase.storage
-                        .from('community_feed_file_upload')
-                        .getPublicUrl(
-                            'posts/' +
-                            post.msgId +
-                            '/' +
-                            filename.mData
-                        );
-                    console.log("data from community_feed: ",data)
-                    if (data && data.publicUrl) {
-                        console.log('Public URL:', data.publicUrl);
-                    } else {
-                        console.error('Error getting public URL or URL is undefined');
-                    }
-
-                    console.log("data.public url =",data.publicUrl)
-                    
-                    newUrls[post.msgId] = data.publicUrl;
-                    console.log("imageUrls: ",newUrls)
-                } catch (err) {
-                    console.error(err);
-                    newUrls[post.msgId] = null;
-                }
+        const sortArray = type =>{
+            const types ={
+                sortByNewest: 'msgId',
+                sortByUpvotes: 'upvote',
             }
-
-            setImageUrls(newUrls);
+            const sortProperty=types[type]
+            const sorted = [...posts].sort((a,b) => b[sortProperty]-a[sortProperty])
+            console.log(sorted)
+            setData(sorted)
         }
+        sortArray(sortType)
+    }, [sortType])
 
-        loadImages();
+    const[postUsernameQuery,setPostUsernameQuery] = useState("")
 
-    }, [posts]);
-
-    console.log("usestate currentuserid: "+currentUserId)
-   
     return(
         <div id="homepage" style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <Button variant="secondary" onClick={signoutButton}>Sign Out</Button>
+                {currentUserId && (
+                    <Button variant="secondary" onClick={signoutButton}>Sign Out</Button>
+                )}
+                {!currentUserId && (
+                    <Button variant="secondary" onClick={signinButton}>Sign in</Button>
+                )}
                 <Button onClick={mainpageButton}>⌂ Mainpage</Button>
                 <Button onClick={coursesButton}>🕮 Courses</Button>
-                <Button onClick={postButton}>📝 Post</Button>
+                {currentUserId && (
+                    <Button onClick={postButton}>📝 Post</Button>
+                )}
             </div>
-            <div id="profileBtn" style={{float:'right'}}>
-                <Button onClick={profileButton}>Profile</Button>
-            </div>
-                        
+            {currentUserId && (
+                <div id="profileBtn" style={{float:'right'}}>
+                    <Button onClick={profileButton}>Profile</Button>
+                </div>
+            )}
+                  
             <div id="addPost" style={{display:"none", marginBottom: '20px'}}>
                 <Card>
                     <h3 style={{ marginTop: 0 }}>Add a New Entry</h3>
@@ -410,12 +411,16 @@ function Posts(){
                     </div>
                 </Card>
             </div>
-
+            <select onChange={(e) => setSortType(e.target.value)}>
+                <option value="sortByNewest">Sort Posts By New</option>
+                <option value="sortByUpvotes">Sort Posts By Upvotes</option>
+            </select>
+            <input type ="text" placeholder="Search Posts By User..." className="search" onChange={(e) => setPostUsernameQuery(e.target.value)}/>
             <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {posts?.map((post, i) => (
+                {data.filter((post)=>post.username.toLowerCase().includes(postUsernameQuery))?.map((post, i) => (
                 
                 <Card key={i}>
-                    <div style={{ color: '#888', fontSize: '12px' }}>{post.msg_id}</div>
+                    <div style={{ color: '#888', fontSize: '12px' }}></div>
 
                     {imageUrls[post.msgId] && (
                         <img
@@ -429,12 +434,17 @@ function Posts(){
                     <p style={{ fontSize: '14px', color: '#555' }}>By {post.username}</p>
                     
                     <p>{post.upvote} Upvotes</p>
-                    <button onClick={()=>upvoteButton}>⬆️</button>
+                    {currentUserId && (
+                        <button onClick={()=>upvoteButton(post.msgId)}>⬆️</button>
+                    )}
 
                     {currentUserId && post.uuid === currentUserId && (
                         <button onClick={() => editPostButton(post.msgId)}>Edit</button>
                     )}
-                    <button onClick={()=>commentButton()}>Comment</button>
+
+                    {currentUserId && (
+                        <button onClick={()=>commentButton()}>Comment</button>
+                    )}
 
                     <div id="editPost" style={{display:"none", marginTop: '15px'}}>
                         <Card variant="dark">
@@ -474,16 +484,18 @@ function Posts(){
                     </div>
                         
                     {/* comments */}
-                    {commentsByPost[post.msgId] && commentsByPost[post.msgId].length > 0 && (
+                    {post.commentdata && post.commentdata.length > 0 && (
                         <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {(commentsByPost[post.msgId])?.map((comment,j)=>(
+                            {post.commentdata?.map((comment,j)=>(
                                 <div key={j} style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
                                     <label style={{ display: 'block', marginBottom: '5px' }}>{comment.comment}</label>
-                                    <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.userId}</p>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.username}</p>
                                     
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
                                         <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>{comment.upvote} Upvotes</p>
-                                        <Button variant="secondary" onClick={()=> upvoteCommentButton(comment.commentId)}>⬆️</Button>
+                                        {currentUserId && (
+                                            <Button variant="secondary" onClick={()=> upvoteCommentButton(comment.commentId)}>⬆️</Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

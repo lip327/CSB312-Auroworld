@@ -5,6 +5,7 @@ import { jwtDecode } from "jwt-decode";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
+import { corsHeaders } from "@supabase/supabase-js/cors";
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 function Login(){
@@ -18,26 +19,6 @@ function Login(){
         navigate("/signup")
     }
 
-    async function googleLoginButton(credentialResponse) {
-        const idToken=credentialResponse.credential
-        try{
-            const response = await fetch("http://localhost:8080/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ idToken })
-            });
-            const data = await response.json();
-            console.log("Login response:",data)
-            if(data.mStatus!=="ok"){
-                alert("Login failed: "+data.mMessage);
-                return;
-            }
-
-        } catch(error){
-            console.error(error.message)
-        }
-        navigate("/posts");
-    }
     async function userpassLoginButton(){
         var email=document.getElementById("email").value
         var pass = document.getElementById("password").value
@@ -59,6 +40,85 @@ function Login(){
         console.log(data)
         navigate("/posts")
 
+    }
+    async function googleLoginButton(credentialResponse) {
+        try{
+            const creds=credentialResponse.credential
+            const { data, error } = await supabase.auth.signInWithIdToken({
+                    provider: 'google',
+                    token: creds,
+            })
+            console.log(error, data)
+
+            const googleAccountInfo = jwtDecode(creds)
+            const checkEmail = await fetch(`http://localhost:8080/user_email/${googleAccountInfo.email}`)
+            const checkEmailRes = await checkEmail.json()
+
+            if(checkEmailRes.mData!==true){
+                const { data: { user } ,error} = await supabase.auth.getUser()
+                if(error){
+                    console.log("problem grabbing uuid" +error.message)
+                    return
+                }
+
+                var userInput=null
+
+                while (true){
+                    userInput= window.prompt("Please enter a username:");
+
+                    const hasSpace = /\s/.test(userInput);
+
+                    if(hasSpace!==false){
+                        window.alert("Usernames may not contain spaces. Please pick another")
+                    }
+                    else if(userInput===null){
+                        window.alert("Cannot enter an empty username. Try again")
+                    }
+                    else if(userInput.length<5 || userInput.length>15){
+                        window.alert("Usernames must be between 5 and 15 characters inclusive. Please pick another")
+                    }
+                    else{
+                        const user_res =await fetch(`http://localhost:8080/user_username/${userInput}`)
+                        const user_data = await user_res.json();
+
+                        if(user_data.mData!==false){
+                            window.alert("Username is taken. Please pick another")
+                        }
+                        else{
+                            break
+                        }
+                    }
+                }
+
+                const accountInfo={
+                    username:userInput,
+                    email:googleAccountInfo.email,
+                    user_uuid:user.id,
+                    lastname:googleAccountInfo.family_name,
+                    firstname:googleAccountInfo.given_name
+                }
+
+                console.log("accountInfo: ",accountInfo)
+
+                const response = await fetch("http://localhost:8080/auth/newuser", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(accountInfo)
+                });
+
+                const data = await response.json();
+                console.log("Signup response:",data)
+
+                if(data.mStatus!=="ok"){
+                    alert("Signup failed: "+data.mMessage);
+                    return;
+                }
+            }
+
+        } catch(error){
+            console.error(error.message)
+        }
+        navigate("/posts");
     }
     return(
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>

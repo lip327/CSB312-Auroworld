@@ -204,6 +204,7 @@ function Profile(){
     const [previewUrl, setPreviewUrl] = useState();
     const [fileName, setFileName] = useState("No file chosen");
 
+
     const [posts, setPosts] = useState([])
 
     useEffect(() => {
@@ -220,7 +221,62 @@ function Profile(){
             .catch(err => console.error("FETCH ERROR for getting posts:", err))
         }
         gatherMyPosts()
+        
+        async function loadImages(){
+
+        }
     }, []);
+
+    const [imageUrls, setImageUrls] = useState({});
+
+    useEffect(() =>{
+        async function loadImages(){
+            if(!posts) return
+            const newUrls={}
+
+            // const user_uuid = await getCurrentUserId()
+            // const allMyFiles = await fetch(`http://localhost:8080/files/mymessages/${user_uuid}`)
+            // const allMyFileData = await allMyFiles.json()
+
+            // if (allMyFileData.mStatus!=="ok"){
+            //     return null
+            // }
+            //var i=0
+            // console.log(allMyFileData.mData)
+            //console.log("allMyFileData[0]: "+allMyFileData.mData[0].filepath)
+
+            for (const post of posts) {
+                try{
+                    // console.log("allMyFileData[i].msgId: "+allMyFileData.mData[i].msgId)
+                    // if (post.msgId === allMyFileData.mData[i].msgId){
+                        //console.log("allMyFileData[i].filepath: ",allMyFileData.mData[i].filepath)
+                        const { data} = supabase.storage
+                            .from('community_feed_file_upload')
+                            .getPublicUrl(
+                                // allMyFileData.mData[i].filepath
+                                post.filepath
+                            );
+                        console.log("data from community_feed: ",data)
+                        if (data && data.publicUrl) {
+                            console.log('Public URL:', data.publicUrl);
+                        } else {
+                            console.error('Error getting public URL or URL is undefined');
+                        }
+                        //console.log("data.public url =",data.publicUrl)
+                        
+                        newUrls[post.msgId] = data.publicUrl;
+                        //i+=1
+                    //}
+
+                }catch(err){
+                    console.error(err)
+                    newUrls[post.msgId]=null
+                }
+            }
+            setImageUrls(newUrls);
+        }
+        loadImages()
+    },[posts])
 
     const [profileInfo, setProfileInfo] = useState(null);
 
@@ -237,56 +293,6 @@ function Profile(){
         }
         fetchProfileInfo()
     },[]);
-
-    const [imageUrls, setImageUrls] = useState({});
-
-    useEffect(() =>{
-        async function loadImages(){
-            if(!posts) return
-            const newUrls={}
-
-            const user_uuid = await getCurrentUserId()
-            const allMyFiles = await fetch(`http://localhost:8080/files/mymessages/${user_uuid}`)
-            const allMyFileData = await allMyFiles.json()
-
-            if (allMyFileData.mStatus!=="ok"){
-                return null
-            }
-            var i=0
-            console.log(allMyFileData.mData)
-            //console.log("allMyFileData[0]: "+allMyFileData.mData[0].filepath)
-
-            for (const post of posts) {
-                try{
-                    // console.log("allMyFileData[i].msgId: "+allMyFileData.mData[i].msgId)
-                    if (post.msgId === allMyFileData.mData[i].msgId){
-                        //console.log("allMyFileData[i].filepath: ",allMyFileData.mData[i].filepath)
-                        const { data} = supabase.storage
-                            .from('community_feed_file_upload')
-                            .getPublicUrl(
-                                allMyFileData.mData[i].filepath
-                            );
-                        console.log("data from community_feed: ",data)
-                        if (data && data.publicUrl) {
-                            console.log('Public URL:', data.publicUrl);
-                        } else {
-                            console.error('Error getting public URL or URL is undefined');
-                        }
-                        //console.log("data.public url =",data.publicUrl)
-                        
-                        newUrls[post.msgId] = data.publicUrl;
-                        i+=1
-                    }
-
-                }catch(err){
-                    console.error(err)
-                    newUrls[post.msgId]=null
-                }
-            }
-            setImageUrls(newUrls);
-        }
-        loadImages()
-    },[posts])
 
     const [profileImageUrl, setProfileImageUrl] = useState(null);
     useEffect(() =>{
@@ -500,7 +506,7 @@ function Profile(){
                             {post.commentdata?.map((comment,j)=>(
                                 <div key={j} style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
                                     <label style={{ display: 'block', marginBottom: '5px' }}>{comment.comment}</label>
-                                    <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.userId}</p>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.username}</p>
                                     
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
                                         <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>{comment.upvote} Upvotes</p>
