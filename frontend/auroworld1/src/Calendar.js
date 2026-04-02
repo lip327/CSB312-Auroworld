@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
 function Calendar() { 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [panelDate, setPanelDate] = useState(new Date());
+  const location = useLocation();
+  const passedDate = location.state?.selectedDate ? new Date(location.state.selectedDate) : new Date();
+
+  const [selectedDate, setSelectedDate] = useState(passedDate);
+  const [panelDate, setPanelDate] = useState(passedDate);
   const [viewMode, setViewMode] = useState('day');
 
   const daysInMonth = new Date(panelDate.getFullYear(), panelDate.getMonth() + 1, 0).getDate();

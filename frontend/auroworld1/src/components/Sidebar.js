@@ -27,17 +27,21 @@ function Sidebar() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', marginBottom: '40px', padding: '0 10px' }}>
                     
                     {!isCollapsed && (
-                        <h2 style={{ 
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-                            fontSize: '20px', 
-                            fontWeight: '800',      
-                            letterSpacing: '-0.5px', 
-                            color: '#111111',       
-                            margin: 0, 
-                            whiteSpace: 'nowrap', 
-                            display: 'flex', 
-                            alignItems: 'center' 
-                        }}>
+                        <h2
+                            onClick={() => navigate('/posts')}
+                            style={{ 
+                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                                fontSize: '20px', 
+                                fontWeight: '800',      
+                                letterSpacing: '-0.5px', 
+                                color: '#111111',       
+                                margin: 0, 
+                                whiteSpace: 'nowrap', 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                cursor: 'pointer'
+                            }}
+                        >
                             <span style={{ 
                                 display: 'inline-block', 
                                 width: '14px',           
@@ -65,8 +69,8 @@ function Sidebar() {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <NavItem isCollapsed={isCollapsed} icon="🏠" label="Homepage" onClick={() => navigate('/posts')} />
                     <NavItem isCollapsed={isCollapsed} icon="📚" label="Courses" onClick={() => navigate('/courses')} />
-                    <NavItem isCollapsed={isCollapsed} icon="✉️" label="Messages" onClick={() => navigate('/posts')} />
                     <NavItem isCollapsed={isCollapsed} icon="📅" label="Calendar" onClick={() => navigate('/calendar')} />
                 </div>
             </div>

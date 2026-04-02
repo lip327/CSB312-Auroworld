@@ -328,7 +328,7 @@ function Posts(){
     console.log("usestate currentuserid: "+currentUserId)
    
     return(
-        <div style={{ display: 'flex', height: '100vh', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#f0f2f5' }}>
+        <div style={{ display: 'flex', height: '100vh', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
             
             <Sidebar 
                 onMainpage={mainpageButton} 
@@ -340,11 +340,11 @@ function Posts(){
                 
                 <Header username={currentUserName} />
 
+                {/* ↓ 改动1：overflow: 'hidden' 替换 overflowY: 'auto'，去掉 justifyContent: 'center'，gap改为20px */}
+                <div style={{ flex: 1, overflow: 'hidden', padding: '20px', display: 'flex', gap: '20px' }}>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', justifyContent: 'center', gap: '30px' }}>
-                    
-
-                    <div style={{ flex: 1, maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '20px' }}>                  
+                    {/* ↓ 改动2：去掉 maxWidth: '800px'，改为 overflowY: 'auto' 让内容自己滚动 */}
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>                  
                         <Card style={{ padding: '15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px' }} onClick={postButton}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#d9d9d9' }}></div>
@@ -471,7 +471,7 @@ function Posts(){
                     </div>
 
                     <div style={{ width: '320px', minWidth: '320px' }}>
-                        <MiniCalendar />
+                        <MiniCalendar onDateChange={(date) => navigate('/calendar', { state: { selectedDate: date } })} />
                     </div>
 
                 </div>

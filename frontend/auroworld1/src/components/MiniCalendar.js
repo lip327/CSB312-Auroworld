@@ -43,6 +43,7 @@ function MiniCalendar({ selectedDate: propDate, onDateChange }) {
           <div
             key={y}
             onClick={() => handleYearClick(y)}
+            className="calendar-day-hover"
             style={{ 
               padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer', fontSize: '14px',
               backgroundColor: y === selectedDate.getFullYear() ? '#333' : 'transparent', 
@@ -66,6 +67,7 @@ function MiniCalendar({ selectedDate: propDate, onDateChange }) {
           <div
             key={m}
             onClick={() => handleMonthClick(index)}
+            className="calendar-day-hover"
             style={{ 
               padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer', fontSize: '14px',
               backgroundColor: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#333' : 'transparent', 
@@ -98,6 +100,7 @@ function MiniCalendar({ selectedDate: propDate, onDateChange }) {
             <div
               key={d}
               onClick={() => handleDayClick(d)}
+              className="calendar-day-hover"
               style={{
                 width: '32px', height: '32px', lineHeight: '32px', margin: '0 auto', borderRadius: '50%', cursor: 'pointer', fontSize: '14px',
                 backgroundColor: isSelected ? '#333' : 'transparent',
@@ -122,6 +125,7 @@ function MiniCalendar({ selectedDate: propDate, onDateChange }) {
           <div
             key={mode}
             onClick={() => setViewMode(mode.toLowerCase())}
+            className="calendar-day-hover"
             style={{
               flex: 1, textAlign: 'center', padding: '8px 0', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold',
               backgroundColor: viewMode === mode.toLowerCase() ? '#666' : 'transparent',
