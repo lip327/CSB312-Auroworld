@@ -9,33 +9,6 @@ public class Database{
     /* -------------------------------------------------------------
      *                       DATA CLASSES
      * ------------------------------------------------------------- */
-    //message class
-    public static final class MessageData {
-        public final int msgId;
-        public final String subject;
-        public final String message;
-        public final int upvote;
-        public final int downvote;
-        public final String uuid;
-
-        // NEW: author name fields
-        // public final String firstName;
-        // public final String lastName;
-
-        public MessageData(int msgId, String subject, String message,
-                        int upvote, int downvote, String uuid) {
-            this.msgId = msgId;
-            this.subject = subject;
-            this.message = message;
-            this.upvote = upvote;
-            this.downvote = downvote;
-            this.uuid=uuid;
-            // this.createdAt = createdAt;
-            // this.valid = valid;
-            // this.firstName = firstName;
-            // this.lastName = lastName;
-        }
-    }
 
     public static final class CommentData {
         public final int commentId;
@@ -46,12 +19,13 @@ public class Database{
         //public final Timestamp createdAt;
         public final boolean valid;
         public final String uuid;
+        public final String username;
 
         //public final String userFirst;
        // public final String userLast;
 
         public CommentData(int commentId, int msgId, String comment, int upvote, 
-                            boolean valid, String uuid){
+                            boolean valid, String uuid, String username){
                            //int upvote, int downvote, Timestamp createdAt, boolean valid,
                            //String userFirst, String userLast) {
             this.commentId = commentId;
@@ -62,8 +36,47 @@ public class Database{
             //this.createdAt = createdAt;
             this.valid = valid;
             this.uuid=uuid;
+            this.username=username;
             //this.userFirst = userFirst;
             //this.userLast = userLast;
+        }
+    }
+
+    public static final class MessageData {
+        public final int msgId;
+        public final String subject;
+        public final String message;
+        public final int upvote;
+        public final int downvote;
+        public final String uuid;
+        public final ArrayList<CommentData> commentdata;
+        public final String filepath;
+        public final String username;
+
+        // NEW: author name fields
+        // public final String firstName;
+        // public final String lastName;
+
+        public MessageData(int msgId, String subject, String message,
+                        int upvote, int downvote, String uuid, ArrayList<CommentData> commentdata, 
+                        String filepath, String username) {
+            this.msgId = msgId;
+            this.subject = subject;
+            this.message = message;
+            this.upvote = upvote;
+            this.downvote = downvote;
+            this.uuid=uuid;
+            this.commentdata=commentdata;
+            this.filepath=filepath;
+            this.username=username;
+            // this.createdAt = createdAt;
+            // this.valid = valid;
+            // this.firstName = firstName;
+            // this.lastName = lastName;
+        }
+        public void getterTest(){
+            System.out.println(msgId);
+            System.out.println(subject);
         }
     }
 
@@ -81,6 +94,22 @@ public class Database{
             this.lastName = lastName;
             this.email = email;
             this.note = note;
+        }
+    }
+
+    public static final class FileData{
+        public final int fileId;
+        public final String user_uuid;
+        public final int msgId;
+        public final String filepath;
+        public final String filename;
+        
+        public FileData(int fileId, String user_uuid,int msgId, String filepath, String filename){
+            this.fileId=fileId;
+            this.user_uuid=user_uuid;
+            this.msgId=msgId;
+            this.filepath=filepath;
+            this.filename=filename;
         }
     }
 
@@ -217,18 +246,38 @@ public class Database{
         }
         return false;
     }
-    public int insertNewAccount(String username, String email, String uuid){
+    public int insertNewProfile(String username, String email, String uuid){
+        String sql =
+                "INSERT INTO profile_attributes (uuid, email, birthday, firstname, lastname, note, username, role)" +
+                "VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL) ";
+        try(Connection conn =getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+                ps.setString(1,uuid);
+                ps.setString(2,email);
+                ps.setString(3,username);
+
+                int res = ps.executeUpdate();
+                System.out.println(res);
+
+                return res;
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int insertNewAccount(String username, String email, String uuid,String lastname, String firstname){
         String sql =
                 "INSERT INTO users (username, firstname, lastname, email, role, note, unique_id)" +
-                "VALUES (?, ?, ?, ?, ?, ?) ";
+                "VALUES (?, ?, ?, ?, ?, ?, ?) ";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
                 ps.setString(1,username);
-                ps.setString(2,"unknown");
-                ps.setString(3,"unknown");
+                ps.setString(2,firstname);
+                ps.setString(3,lastname);
                 ps.setString(4,email);
                 ps.setString(5,"user");
-                ps.setString(6,"");
+                ps.setString(6,null);
                 ps.setString(7,uuid);
                 
                 int torf=ps.executeUpdate();
@@ -266,40 +315,176 @@ public class Database{
         }
     }
 
-    public ArrayList<MessageData> selectAllMessages() {
-        ArrayList<MessageData> res = new ArrayList<>();
+    public ArrayList<MessageData> selectAllMessages(){
+        Map<Integer,MessageData> msgs = new LinkedHashMap<>();
 
-        String sql =
-            "SELECT msg_id, subject, message, upvote, downvote, unique_id " +
-            "FROM messages " +
-            "ORDER BY msg_id";
-            // "SELECT m.msg_id, m.\"username\", m.subject, m.message, " +
-            // "       m.upvote, m.downvote " +
-            // "FROM messages m " + 
-            // "LEFT JOIN \"Users\" u ON m.\"username\" = u.\"username\" " +
-            // "ORDER BY m.msg_id";
-
+        String sql=
+            "SELECT m.msg_id, m.subject, m.message, " +
+            "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+            "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+            "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+            "FROM messages m " +
+            "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+            "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+            "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+            "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+            "ORDER BY m.msg_id DESC";
+        
         try (Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql)){
 
-            while (rs.next()) {
-                res.add(new MessageData(
-                        rs.getInt("msg_id"),
-                        rs.getString("subject"),
-                        rs.getString("message"),
-                        rs.getInt("upvote"),
-                        rs.getInt("downvote"),
-                        rs.getString("unique_id")
-                        // rs.getString("first_name"),   // may be null if somehow missing
-                        // rs.getString("last_name")
-                ));
+            try (ResultSet rs = ps.executeQuery()){
+            
+                while (rs.next()){
+                    int msgId= rs.getInt("msg_id");
+
+                    MessageData msg = msgs.get(msgId);
+
+                    String name ="[unknown]";
+                    if (rs.getString("your_username")!=null){
+                        name=rs.getString("your_username");
+                    }
+
+                    if(msg==null){
+
+                        msg = new MessageData(
+                            msgId,
+                            rs.getString("subject"),
+                            rs.getString("message"),
+                            rs.getInt("message_upvote"),
+                            rs.getInt("downvote"),
+                            rs.getString("your_uuid"),
+                            new ArrayList<>(),
+                            rs.getString("file_path"),
+                            name
+                            // rs.getString("first_name"),   // may be null if somehow missing
+                            // rs.getString("last_name")
+                        );
+                        msgs.put(msgId,msg);
+                    }
+                    int commentId = rs.getInt("comment_id");
+
+                    if(rs.getString("comment_username")!=null){
+                        name=rs.getString("comment_username");
+                    }
+                    if (!rs.wasNull()) {
+
+                        CommentData comm = new CommentData(
+                            rs.getInt("comment_id"),
+                            msgId,
+                            rs.getString("comment"),
+                            rs.getInt("comment_upvote"),
+                            true,
+                            rs.getString("comment_unique_id"),
+                            name
+                        );
+                        msg.commentdata.add(comm);
+                    }
+                    //System.out.println(msg);
+                    // msg.getterTest();
+                    
+                }
             }
-
-        } catch (SQLException e) {
+        }catch(SQLException e){
             e.printStackTrace();
         }
+        ArrayList<MessageData> res = new ArrayList<>(msgs.values());
         return res;
+    }
+
+    public ArrayList<MessageData> selectUserMessages(String user_uuid){
+
+        Map<Integer, MessageData> msgs = new LinkedHashMap<>();
+
+        String sql = 
+            "SELECT m.msg_id, m.subject, m.message, " +
+            "m.upvote AS message_upvote, m.downvote, m.unique_id, " +
+            "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+            "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+            "FROM messages m " +
+            "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+            "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+            "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+            "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+            "WHERE m.unique_id = ? "+
+            "ORDER BY m.msg_id DESC";
+
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+
+            ps.setString(1,user_uuid);
+
+            try (ResultSet rs = ps.executeQuery()){
+            
+                while (rs.next()){
+                    int msgId= rs.getInt("msg_id");
+
+                    MessageData msg = msgs.get(msgId);
+
+                    if(msg==null){
+
+                        msg = new MessageData(
+                            msgId,
+                            rs.getString("subject"),
+                            rs.getString("message"),
+                            rs.getInt("message_upvote"),
+                            rs.getInt("downvote"),
+                            user_uuid,
+                            new ArrayList<>(),
+                            rs.getString("file_path"),
+                            rs.getString("your_username")
+                            // rs.getString("first_name"),   // may be null if somehow missing
+                            // rs.getString("last_name")
+                        );
+                        msgs.put(msgId,msg);
+                    }
+                    int commentId = rs.getInt("comment_id");
+
+                    if (!rs.wasNull()) {
+
+                        CommentData comm = new CommentData(
+                            rs.getInt("comment_id"),
+                            msgId,
+                            rs.getString("comment"),
+                            rs.getInt("comment_upvote"),
+                            true,
+                            rs.getString("comment_unique_id"),
+                            rs.getString("comment_username")
+                        );
+                        msg.commentdata.add(comm);
+                    }
+                }
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        ArrayList<MessageData> res = new ArrayList<>(msgs.values());
+        return res;
+    }
+    //String fileId, String user_uuid,int msgId, String filepath, String filename
+    public ArrayList<FileData> grabMyFilenames(String user_uuid){
+        ArrayList<FileData> files = new ArrayList<>();
+        String sql=
+            "SELECT f.file_id AS f_id, f.filename AS f_name, f.msg_id AS m_id, f.filepath AS f_path FROM files f WHERE f.unique_id=? ORDER BY f_id DESC";
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1,user_uuid);
+            try (ResultSet rs = ps.executeQuery()){
+                while(rs.next()){
+                    files.add(new FileData(
+                        rs.getInt("f_id"),
+                        user_uuid,
+                        rs.getInt("m_id"),
+                        rs.getString("f_path"),
+                        rs.getString("f_name")
+                    ));
+                }
+            }
+        } catch(SQLException e){
+            e.printStackTrace();
+            return null;
+        }
+        return files;
     }
 
     public String grabFilename(int msg_id){
@@ -323,13 +508,27 @@ public class Database{
 
     }
 
+    // "SELECT m.msg_id, m.subject, m.message, " +
+    //         "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+    //         "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+    //         "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+    //         "FROM messages m " +
+    //         "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+    //         "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+    //         "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+    //         "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+    //         "ORDER BY m.msg_id DESC";
     public MessageData selectMessage(int msg_Id) {
         String sql =
             "SELECT m.msg_id, m.subject, m.message, " +
-            "       m.upvote, m.downvote, m.unique_id, " +
-            "       u.firstname, u.lastname " +
+            "       m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+            "       c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+            "       f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
             "FROM messages m " +
+            "LEFT JOIN comments c ON m.msg_id = c.msg_d " +
+            "LEFT JOIN files f ON m.msg_id = f.msg_id " +
             "LEFT JOIN \"users\" u ON m.\"unique_id\" = u.\"unique_id\" " +
+            "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
             "WHERE m.msg_id=?";
 
         try (Connection conn = getConnection();
@@ -340,18 +539,36 @@ public class Database{
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
 
-                return new MessageData(
-                        rs.getInt("msg_id"),
-                        rs.getString("subject"),
-                        rs.getString("message"),
-                        rs.getInt("upvote"),
-                        rs.getInt("downvote"),
-                        rs.getString("unique_id")
-                        //rs.getTimestamp("created_at"),
-                        //rs.getBoolean("valid"),
-                        //rs.getString("first_name"),
-                        //rs.getString("last_name")
+                MessageData msg = new MessageData(
+                    rs.getInt("msg_id"),
+                    rs.getString("subject"),
+                    rs.getString("message"),
+                    rs.getInt("message_upvote"),
+                    rs.getInt("downvote"),
+                    rs.getString("unique_id"),
+                    new ArrayList<>(),
+                    rs.getString("file_path"),
+                    rs.getString("your_username")
+                    //rs.getTimestamp("created_at"),
+                    //rs.getBoolean("valid"),
+                    //rs.getString("first_name"),
+                    //rs.getString("last_name")
                 );
+                int commentId = rs.getInt("comment_id");
+
+                if (!rs.wasNull()) {
+                    CommentData comm = new CommentData(
+                        rs.getInt("comment_id"),
+                        rs.getInt("msg_id"),
+                        rs.getString("comment"),
+                        rs.getInt("comment_upvote"),
+                        true,
+                        rs.getString("comment_unique_id"),
+                        rs.getString("comment_username")
+                    );
+                    msg.commentdata.add(comm);
+                }
+                return msg;
             }
 
         } catch (SQLException e) {
@@ -360,25 +577,26 @@ public class Database{
         }
     }
 
-    // public int updatePost(int msgId, String title, String message){
-    //     String sql =
-    //             "UPDATE INTO messages (subject,message)"+
-    //             "VALUES (?, ?)"+
-    //             "RETURNING msg_id";
-    //         try(Connection conn= getConnection();
-    //             PreparedStatement ps = conn.prepareStatement(sql)){
-    //                 ps.setString(1,title);
-    //                 ps.setString(2,message);
+    public int updatePost(int msgId, String title, String message){
+        String sql =
+                "UPDATE messages SET subject=?, message=? WHERE msg_id=?";
+
+            try(Connection conn= getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)){
+                    ps.setString(1,title);
+                    ps.setString(2,message);
+                    ps.setInt(3,msgId);
                 
-    //             try (ResultSet rs=ps.executeUpdate()){
-    //                 if (rs.next()) return rs.getInt("msg_id");
-    //                 return -1;
-    //             }
-    //         } catch (SQLException e){
-    //             e.printStackTrace();
-    //             return -1;
-    //         }
-    // }
+                int res=ps.executeUpdate();
+                if (res>0) {
+                    return res;
+                }
+                return -1;
+            } catch (SQLException e){
+                e.printStackTrace();
+                return -1;
+            }
+    }
 
     public int insertFileToTable(String userId, String file,int msgId,String filepath){
         String sql=
@@ -645,20 +863,30 @@ public class Database{
         }
     }
 
-
     public ArrayList<CommentData> selectComments(int msgId) {
         ArrayList<CommentData> res = new ArrayList<>();
 
         String sql =
-            "SELECT c.comment_id, c.msg_id, c.comment,c.valid ,c.upvote, c.unique_id " +
+            "SELECT c.comment_id, c.msg_id, c.comment,c.valid ,c.upvote, " + 
+            "c.unique_id, cu.username AS comment_username " +
             //"       c.created_at,  u.first_name, u.last_name " +
             "FROM comments c " +
             "JOIN \"users\" u ON c.\"unique_id\" = u.\"unique_id\" " +
-            "WHERE c.msg_id=? ORDER BY c.comment_id";
+            "LEFT JOIN \"users\" cu ON  c.unique_id = cu.unique_id " +
+            "WHERE c.msg_id=? ORDER BY c.comment_id DESC";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
+// "SELECT m.msg_id, m.subject, m.message, " +
+    //         "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+    //         "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+    //         "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+    //         "FROM messages m " +
+    //         "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+    //         "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+    //         "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+    //         "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+    //         "ORDER BY m.msg_id DESC";
             ps.setInt(1, msgId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -672,7 +900,8 @@ public class Database{
                             //0, // downvote placeholder
                             //rs.getTimestamp("created_at"),
                             rs.getBoolean("valid"),
-                            rs.getString("unique_id")
+                            rs.getString("unique_id"),
+                            rs.getString("comment_username")
                             //rs.getString("first_name"),
                             //rs.getString("last_name")
                     ));
@@ -685,25 +914,25 @@ public class Database{
         return res;
     }
 
-    public ProfilePublicData selectPublicProfile(String userId) {
+    public ProfilePublicData selectPublicProfile(String user_uuid) {
         String sql =
                 "SELECT \"username\", firstname, lastname, email, note " +
-                "FROM \"users\" WHERE \"username\"=?";
+                "FROM \"users\" WHERE \"unique_id\"=?";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, userId);
+            ps.setString(1, user_uuid);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
 
                 return new ProfilePublicData(
-                        rs.getString("username"),
-                        rs.getString("firstname"),
-                        rs.getString("lastname"),
-                        rs.getString("email"),
-                        rs.getString("note")
+                    rs.getString("username"),
+                    rs.getString("firstname"),
+                    rs.getString("lastname"),
+                    rs.getString("email"),
+                    rs.getString("note")
                 );
             }
 

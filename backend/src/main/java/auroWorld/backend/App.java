@@ -61,6 +61,13 @@ public class App
             return SESSIONS.get(token);
         }
     }
+    private static final class GoogleAccountRequest{
+        public String username;
+        public String email;
+        public String user_uuid;
+        public String firstname;
+        public String lastname;
+    }
     private static final class CreateAccountRequest{
         public String username;
         public String email;
@@ -85,6 +92,9 @@ public class App
         public String filename;
         public int msgId;
     }
+    private static final class ChangeFileRequest{
+        public String filename;
+    }
     private static final class CreateVoteRequest{
         public String user_uuid;
     }
@@ -99,6 +109,11 @@ public class App
     private static final class CreateCommentRequest {
         public String user_uuid;
         public String comment;
+    }
+    //class for updating message
+    private static final class CreateUpdateRequest{
+        public String subject;
+        public String message;
     }
 
     //function for getting session token from window
@@ -190,6 +205,7 @@ public class App
                 });
             });
         });
+
         app.post("/newuser",ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
@@ -207,7 +223,7 @@ public class App
                 return;
             }
 
-            int result = db.insertNewAccount(car.username,car.email, car.user_uuid);
+            int result = db.insertNewAccount(car.username,car.email, car.user_uuid,null,null);
 
             System.out.println(result);
 
@@ -218,6 +234,32 @@ public class App
                 ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
             }
         });
+
+        app.post("/profile_attributes", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+            System.out.println("ctx bdoy : "+ctx.body());
+
+            CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
+            if(car==null || car.email == null || car.username==null || car.user_uuid==null){
+                System.out.println(car);
+                System.out.println(car.email);
+                System.out.println(car.username);
+                System.out.println(car.user_uuid);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing username or email", null)));
+                return;
+            }
+            int  result = db.insertNewProfile(car.username,car.email,car.user_uuid);
+
+            if(result==0){
+                ctx.result(gson.toJson(new StructuredResponse("adding to profile table failed",null,result)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+        });
+
         app.get("/username/{uuid}", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
@@ -234,28 +276,6 @@ public class App
             else{
                 ctx.result(gson.toJson(new StructuredResponse("ok",null,username)));
             }
-        });
-        app.get("/user_email/{email}",ctx->{
-            ctx.status(200);
-            ctx.contentType("application/json");
-            System.out.println("ctx body for checking email : "+ctx.body());
-
-            String email=ctx.pathParam("email");
-
-            System.out.println("ABout to check if email already registered");
-
-            //boolean result = db.emailExists(cer.email);
-            boolean result=db.emailExists(email);
-
-            System.out.println(result);
-
-            if(result==true){
-                ctx.result(gson.toJson(new StructuredResponse("account with "+email+" already exists",null,result)));
-            }
-            else{
-                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
-            }
-            
         });
 
         app.get("/user_username/{username}",ctx->{
@@ -281,85 +301,88 @@ public class App
             
         });
 
-        app.post("/auth/login", ctx -> {
-
+        app.get("/user_email/{email}",ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
-            System.out.println("ctx bdoy : "+ctx.body());
-            LoginRequest lr = gson.fromJson(ctx.body(), LoginRequest.class);
-            System.out.println("LOGIN: Parsed body, idToken present? " + (lr != null && lr.idToken != null));
+            System.out.println("ctx body for checking email : "+ctx.body());
 
-            if (lr == null || lr.idToken == null) {
-                System.out.println("you cant login");
-                System.out.println(lr);
-                System.out.println(lr.idToken);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing idToken", null)));
-                return;
+            String email=ctx.pathParam("email");
+
+            System.out.println("ABout to check if email already registered");
+
+            //boolean result = db.emailExists(cer.email);
+            boolean result=db.emailExists(email);
+
+            System.out.println(result);
+
+            if(result==true){
+                ctx.result(gson.toJson(new StructuredResponse("account with "+email+" already exists",null,result)));
             }
-
-            System.out.println("LOGIN: About to call verifyGoogleIdToken");
-            GoogleTokenInfo info = verifyGoogleIdToken(lr.idToken);
-            System.out.println("LOGIN: verifyGoogleIdToken returned: " + (info != null));
-
-            if (info == null) {
-                ctx.status(401);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "invalid or unauthorized token", null)));
-                return;
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
             }
-
-            // Determine if this user is admin (optional)
-            boolean isAdmin = false;
-            String adminList = System.getenv("ADMIN_EMAILS");
-            if (adminList != null && info.email != null &&
-                    adminList.toLowerCase().contains(info.email.toLowerCase())) {
-                isAdmin = true;
-            }
-
-            // Ensure user exists in DB (with email)
-            db.ensureUserWithEmail(info.given_name, info.family_name, info.email);
-            // db.ensureUserWithEmail2(info.given_name,info.family_name,info.email);
-            // db.ensureUserWithEmail(info.sub, info.given_name, info.family_name, info.email);
-
-            // Create server-side session
-            SessionData sd = new SessionData(
-                    info.email,
-                    info.given_name,
-                    info.family_name,
-                    isAdmin
-            );
-            String sessionToken = SessionManager.create(sd);
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("sessionToken", sessionToken);
-            // payload.put("username", info.sub);
-            payload.put("email", info.email);
-            payload.put("firstName", info.given_name);
-            payload.put("lastName", info.family_name);
-
-            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+            
         });
 
+        app.post("/auth/newuser", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
 
-        app.get("/messages", ctx -> {
-            // Require login
-            // SessionData session = requireSession(ctx);
-            // if (session == null) return;   // requireSession already sends error JSON
-            // String userId = ctx.header("X-Session-Token").toString();
-            // if(userId==null){
-            //     return;
-            // }
+            System.out.println("ctx body: "+ctx.body());
 
+            GoogleAccountRequest gar = gson.fromJson(ctx.body(),GoogleAccountRequest.class);
+
+            if(gar==null || gar.username==null || gar.email==null || gar.lastname==null 
+                || gar.firstname==null || gar.user_uuid==null ){
+                System.out.println(gar);
+                System.out.println(gar.username);
+                System.out.println(gar.email);
+                System.out.println(gar.lastname);
+                System.out.println(gar.firstname);
+                System.out.println(gar.user_uuid);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing username or email", null)));
+                return;
+            }
+
+            int result = db.insertNewAccount(gar.username,gar.email,gar.user_uuid,gar.lastname,gar.firstname);
+
+            if(result==0){
+                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,result)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+            }
+        });
+
+        app.get("/users/{userId}/messages", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            String userid=ctx.pathParam("userId");
+
+            ArrayList<Database.MessageData> my_msgs = db.selectUserMessages(userid);
+
+            StructuredResponse resp = new StructuredResponse(
+                    "ok",
+                    null,
+                    my_msgs
+            );
+
+            ctx.result(gson.toJson(resp));
+
+        });
+
+        app.get("/messages", ctx ->{
             ctx.status(200);
             ctx.contentType("application/json");
 
             ArrayList<Database.MessageData> msgs = db.selectAllMessages();
 
             StructuredResponse resp = new StructuredResponse(
-                    "ok",
-                    null,
-                    msgs
+                "ok",
+                null,
+                msgs
             );
 
             ctx.result(gson.toJson(resp));
@@ -451,6 +474,41 @@ public class App
                 ctx.result(gson.toJson(new StructuredResponse("ok",null,filename)));
             }
         });
+
+        app.get("/files/mymessages/{user_uuid}", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            String user_uuid = ctx.pathParam("user_uuid");
+
+            ArrayList<Database.FileData> files = db.grabMyFilenames(user_uuid);
+
+            StructuredResponse resp = new StructuredResponse(
+                    "ok",
+                    null,
+                    files
+            );
+
+            ctx.result(gson.toJson(resp));
+        });
+
+        // app.put("/file/{msg_id}",ctx->{
+        //     ctx.status(200);
+        //     ctx.contentType("application/json");
+
+        //     int msg_id=Integer.parseInt(ctx.pathParam("msg_id"));
+        //     System.out.println(msg_id);
+
+        //     ChangeFileRequest cfr = gson.fromJson(ctx.body(),ChangeFileRequest.class);
+        //     if(cfr==null || cfr.filename==null || cfr.filename.trim().isEmpty()){
+        //         ctx.status(400);
+        //         ctx.result(gson.toJson(new StructuredResponse(
+        //             "error","missing filepath",null)));
+        //         return;
+        //     }
+
+        //     int success = db.editFileInTable(msg_id,cfr.filename);
+        // });
 
         app.post("/messages/{id}/comments", ctx -> {
             // // Require login
@@ -573,28 +631,28 @@ public class App
             ctx.result(json);
         });
 
-        // app.put("/messages/{id}",ctx->{
-        //     ctx.status(200);
-        //     ctx.contentType("application/json");
+        app.put("/messages/{id}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
 
-        //     int msgId=Integer.parseInt(ctx.pathParam("id"));
+            int msgId=Integer.parseInt(ctx.pathParam("id"));
 
-        //     CreateMessageRequest req = gson.fromJson(ctx.body(), CreateMessageRequest.class);
+            CreateUpdateRequest cur = gson.fromJson(ctx.body(), CreateUpdateRequest.class);
 
-        //     if (req == null || req.subject || req.message == null) {
-        //         ctx.result(gson.toJson(new StructuredResponse(
-        //                 "error", "missing message subject or message", null)));
-        //         return;
-        //     }
+            if (cur == null || cur.subject ==null || cur.message == null) {
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing message subject or message", null)));
+                return;
+            }
 
-        //     int result = db.updatePost(msgId, "Tester", req.message);
+            int result = db.updatePost(msgId, cur.subject, cur.message);
 
-        //     StructuredResponse resp = (result == -1 || result == 0)
-        //             ? new StructuredResponse("error", "post update failed (not owner?)", null)
-        //             : new StructuredResponse("ok", null, "updated");
+            StructuredResponse resp = (result == -1 || result == 0)
+                    ? new StructuredResponse("error", "post update failed", null)
+                    : new StructuredResponse("ok", null, "updated");
 
-        //     ctx.result(gson.toJson(resp));
-        // });
+            ctx.result(gson.toJson(resp));
+        });
 
 
         app.get("/messages/{id}/comments", ctx -> {
@@ -644,15 +702,11 @@ public class App
 
             String targetId = ctx.pathParam("userId");
 
-            //String cacheKey = "public_profile_" + targetId;
-            // String cachedJson = (String) cache.get(cacheKey);
-            // if (cachedJson != null) {
-            //     System.out.println("CACHE HIT: profile-"+targetId);
-            //     ctx.result(cachedJson);
-            //     return;
-            // }
+            System.out.println("targetId = "+targetId);
 
             Database.ProfilePublicData profile = db.selectPublicProfile(targetId);
+
+            System.out.println("profile: "+profile);
 
             StructuredResponse resp = (profile == null)
                     ? new StructuredResponse("error", "profile not found", null)
