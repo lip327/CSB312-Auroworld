@@ -76,7 +76,7 @@ function Sidebar() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <NavItem isCollapsed={isCollapsed} icon="⚙️" label="Settings" />
+                <NavItem isCollapsed={isCollapsed} icon="⚙️" label="Settings" onClick={() => navigate('/profile')} />
                 <NavItem isCollapsed={isCollapsed} icon="🚪" label="Sign Out" color="#d9534f" onClick={() => navigate('/login')} />
             </div>
 

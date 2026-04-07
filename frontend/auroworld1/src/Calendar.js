@@ -1,7 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+
+const ZOOM_LINK = 'https://lehigh.zoom.us/j/98398084113';
+
+const events = [
+  {
+    id: 1,
+    title: 'Class Meeting',
+    date: new Date(2026, 3, 7),
+    startHour: 17,
+    startMinute: 30,
+    endHour: 18,
+    endMinute: 0,
+    color: '#1a73e8',
+    zoomLink: ZOOM_LINK,
+  }
+];
 
 function Calendar() { 
   const location = useLocation();
@@ -10,6 +26,16 @@ function Calendar() {
   const [selectedDate, setSelectedDate] = useState(passedDate);
   const [panelDate, setPanelDate] = useState(passedDate);
   const [viewMode, setViewMode] = useState('day');
+
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      const now = new Date();
+      const scrollTo = (now.getHours() * 60 + now.getMinutes()) - 60;
+      scrollRef.current.scrollTop = scrollTo > 0 ? scrollTo : 0;
+    }
+  }, []);
 
   const daysInMonth = new Date(panelDate.getFullYear(), panelDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(panelDate.getFullYear(), panelDate.getMonth(), 1).getDay();
@@ -91,9 +117,9 @@ function Calendar() {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', textAlign: 'center', marginTop: '10px' }}>
         {weekDays.map((d, i) => (
-          <div key={`header-${i}`} style={{ fontWeight: 'bold', fontSize: '12px', paddingBottom: '10px', color: '#333' }}>{d}</div>
+          <div key={'header-' + i} style={{ fontWeight: 'bold', fontSize: '12px', paddingBottom: '10px', color: '#333' }}>{d}</div>
         ))}
-        {blanks.map(b => <div key={`blank-${b}`} />)}
+        {blanks.map(b => <div key={'blank-' + b} />)}
         {days.map(d => {
           const isSelected = d === selectedDate.getDate() && panelDate.getMonth() === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear();
           return (
@@ -132,10 +158,29 @@ function Calendar() {
 
   const hours = Array.from({ length: 24 }, (_, i) => {
     if (i === 0) return '12 AM';
-    if (i < 12) return `${i} AM`;
+    if (i < 12) return i + ' AM';
     if (i === 12) return '12 PM';
-    return `${i - 12} PM`;
+    return (i - 12) + ' PM';
   });
+
+  const getEventBlocks = () => {
+    return events.map(event => {
+      const dayIndex = weekDates.findIndex(d =>
+        d.getFullYear() === event.date.getFullYear() &&
+        d.getMonth() === event.date.getMonth() &&
+        d.getDate() === event.date.getDate()
+      );
+      if (dayIndex === -1) return null;
+      const topPx = event.startHour * 60 + event.startMinute;
+      const heightPx = (event.endHour * 60 + event.endMinute) - topPx;
+      return { ...event, dayIndex, topPx, heightPx };
+    }).filter(Boolean);
+  };
+
+  const eventBlocks = getEventBlocks();
+  const isEventDay = selectedDate.getFullYear() === 2026 && selectedDate.getMonth() === 3 && selectedDate.getDate() === 7;
+
+  const monthName = panelDate.toLocaleString('en-US', { month: 'long' });
 
   return (
     <div style={{ 
@@ -165,7 +210,7 @@ function Calendar() {
               ))}
             </div>
 
-            <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+            <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
               {hours.map((time, i) => (
                 <div key={i} style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', height: '60px' }}>
                   <div style={{ width: '60px', textAlign: 'center', fontSize: '11px', color: '#999', paddingTop: '5px', borderRight: '1px solid #eee' }}>
@@ -176,9 +221,43 @@ function Calendar() {
                   ))}
                 </div>
               ))}
+
+              {eventBlocks.map(event => (
+                <a 
+                  key={event.id}
+                  href={event.zoomLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    position: 'absolute',
+                    top: event.topPx + 'px',
+                    left: `calc(60px + ${event.dayIndex} * ((100% - 60px) / 7) + 2px)`,
+                    width: 'calc((100% - 60px) / 7 - 6px)',
+                    height: event.heightPx + 'px',
+                    backgroundColor: event.color,
+                    borderRadius: '6px',
+                    padding: '4px 6px',
+                    color: 'white',
+                    fontSize: '12px',
+                    textDecoration: 'none',
+                    overflow: 'hidden',
+                    zIndex: 10,
+                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                    boxShadow: '0 2px 6px rgba(26,115,232,0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {event.title}
+                  </div>
+                  <div style={{ fontSize: '10px', opacity: 0.9 }}>5:30 - 6:00 PM · Zoom</div>
+                </a>
+              ))}
             </div>
           </div>
-
 
           <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
@@ -201,7 +280,7 @@ function Calendar() {
 
             <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
               <div style={{ fontSize: '16px', fontWeight: '800', marginBottom: '15px', textAlign: 'center', color: '#333' }}>
-                {viewMode === 'day' && `${panelDate.toLocaleString('default', { month: 'long' })} ${panelDate.getFullYear()}`}
+                {viewMode === 'day' && monthName + ' ' + panelDate.getFullYear()}
                 {viewMode === 'month' && panelDate.getFullYear()}
                 {viewMode === 'year' && 'Select Year'}
               </div>
@@ -213,14 +292,26 @@ function Calendar() {
 
             <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1 }}>
               <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '800', color: '#333' }}>My Schedule</h3>
-              
-              {viewMode === 'day' ? (
-                <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#555' }}>
-                  job of day "{selectedDate.getDate()}"
-                </div>
-              ) : (
+
+              {viewMode !== 'day' && (
                 <div style={{ color: '#999', fontSize: '14px', textAlign: 'center', marginTop: '30px' }}>
                   Please select a day to view your schedule.
+                </div>
+              )}
+
+              {viewMode === 'day' && isEventDay && (
+                <a href={ZOOM_LINK} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                  <div style={{ backgroundColor: '#e8f0fe', border: '1px solid #1a73e8', padding: '12px 15px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }}>
+                    <div style={{ fontWeight: 'bold', color: '#1a73e8' }}>Class Meeting</div>
+                    <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>5:30 PM - 6:00 PM</div>
+                    <div style={{ fontSize: '12px', color: '#1a73e8', marginTop: '2px' }}>Click to join Zoom</div>
+                  </div>
+                </a>
+              )}
+
+              {viewMode === 'day' && !isEventDay && (
+                <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#555' }}>
+                  {'No events for day "' + selectedDate.getDate() + '"'}
                 </div>
               )}
             </div>
