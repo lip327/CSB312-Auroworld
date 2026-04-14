@@ -76,6 +76,9 @@ public class App
     public static final class LoginRequest {
         public String idToken;
     }
+    private static final class EnrollRequest {
+      public String user_uuid;
+    }
     //class for grabbing infromation from google account you use to sign in 
     private static final class GoogleTokenInfo {
         public String aud;
@@ -116,6 +119,19 @@ public class App
         public String message;
     }
 
+    private static final class CreateCourseRequest{
+        public String title;
+        public String description;
+        public String instructor;
+        public String times;
+        public String startDate;
+        public String level;
+        public String price;
+        public String live_url;
+    }
+    private static final class CreateUnitRequest{
+        public String unitName;
+    }
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
         String token = ctx.header("X-Session-Token");
@@ -718,6 +734,131 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
+    // private static final class CreateCourseRequest{
+    //     public String title;
+    //     public String description;
+    //     public String instructor;
+
+    // }
+    app.post("/course_units/{id}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int courseId = Integer.parseInt(ctx.pathParam("id"));
+
+        CreateUnitRequest unitReq = gson.fromJson(ctx.body(), CreateUnitRequest.class);
+
+        if(unitReq==null || unitReq.unitName==null){
+            System.out.println(unitReq);
+            System.out.println(unitReq.unitName);
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin unit feature", null)));
+                return;
+        }
+
+        int unitId=db.createUnit(unitReq.unitName, courseId);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, unitId)));
+
+    });
+
+    app.post("/courses", ctx ->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        CreateCourseRequest ccr = gson.fromJson(ctx.body(), CreateCourseRequest.class);
+
+            if (ccr == null || ccr.title ==null || ccr.description == null 
+            || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+            || ccr.price==null || ccr.live_url==null) {
+                System.out.println(ccr);
+                System.out.println(ccr.title);
+                System.out.println(ccr.description);
+                System.out.println(ccr.instructor);
+                System.out.println(ccr.times);
+                System.out.println(ccr.startDate);
+                System.out.println(ccr.level);
+                System.out.println(ccr.price);
+                System.out.println(ccr.live_url);
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin course feature", null)));
+                return;
+            }
+
+        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate, 
+            ccr.level, ccr.price, ccr.live_url);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
+    });
+
+    app.get("/courses", ctx -> {
+        ctx.status(200);
+        ctx.contentType("application/json");
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, db.selectAllCourses())));
+    });
+    
+    // GET /courses/{id} — single course (full unit+video tree)
+    app.get("/courses/{id}", ctx -> {
+        ctx.status(200);
+        ctx.contentType("application/json");
+        int courseId = Integer.parseInt(ctx.pathParam("id"));
+        Database.CourseData course = db.selectCourse(courseId);
+        ctx.result(gson.toJson(course == null
+            ? new StructuredResponse("error", "course not found", null)
+            : new StructuredResponse("ok", null, course)));
+    });
+    
+    // GET /courses/enrolled/{uuid} — enrolled courses for a user
+    app.get("/courses/enrolled/{uuid}", ctx -> {
+        ctx.status(200);
+        ctx.contentType("application/json");
+        String uuid = ctx.pathParam("uuid");
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, db.selectEnrolledCourses(uuid))));
+    });
+    
+    // POST /courses/{id}/enroll — enroll the current user
+    app.post("/courses/{id}/enroll", ctx -> {
+        ctx.status(200);
+        ctx.contentType("application/json");
+    
+        int courseId = Integer.parseInt(ctx.pathParam("id"));
+        // reuse EnrollRequest inner class (add to top of App.java — see comment above)
+        EnrollRequest req = gson.fromJson(ctx.body(), EnrollRequest.class);
+        if (req == null || req.user_uuid == null) {
+            ctx.status(400);
+            ctx.result(gson.toJson(new StructuredResponse("error", "missing user_uuid", null)));
+            return;
+        }
+    
+        int result = db.enrollUser(courseId, req.user_uuid);
+        if (result < 0) {
+            ctx.status(500);
+            ctx.result(gson.toJson(new StructuredResponse("error", "enroll failed", null)));
+        } else if (result == 0) {
+            ctx.result(gson.toJson(new StructuredResponse("ok", "already enrolled", null)));
+        } else {
+            ctx.result(gson.toJson(new StructuredResponse("ok", "enrolled", null)));
+        }
+    });
+    
+    // DELETE /courses/{id}/enroll — unenroll
+    app.delete("/courses/{id}/enroll", ctx -> {
+        ctx.status(200);
+        ctx.contentType("application/json");
+    
+        int courseId = Integer.parseInt(ctx.pathParam("id"));
+        EnrollRequest req = gson.fromJson(ctx.body(), EnrollRequest.class);
+        if (req == null || req.user_uuid == null) {
+            ctx.status(400);
+            ctx.result(gson.toJson(new StructuredResponse("error", "missing user_uuid", null)));
+            return;
+        }
+    
+        int result = db.unenrollUser(courseId, req.user_uuid);
+        ctx.result(gson.toJson(result <= 0
+            ? new StructuredResponse("error", "unenroll failed or not enrolled", null)
+            : new StructuredResponse("ok", "unenrolled", null)));
+    });
 
         app.start(8080);
     }  

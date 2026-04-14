@@ -113,6 +113,77 @@ public class Database{
         }
     }
 
+    // ── Course data classes ──────────────────────────────────────
+
+    public static final class VideoData {
+        public final int    videoId;
+        public final int    unitId;
+        public final String title;
+        public final String driveUrl;
+        public final String duration;
+        public final int    sortOrder;
+
+        public VideoData(int videoId, int unitId, String title,
+                         String driveUrl, String duration, int sortOrder) {
+            this.videoId   = videoId;
+            this.unitId    = unitId;
+            this.title     = title;
+            this.driveUrl  = driveUrl;
+            this.duration  = duration;
+            this.sortOrder = sortOrder;
+        }
+    }
+
+    public static final class UnitData {
+        public final int             unitId;
+        public final int             courseId;
+        public final String          title;
+        public final int             sortOrder;
+        public final List<VideoData> videos;
+
+        public UnitData(int unitId, int courseId, String title,
+                        int sortOrder, List<VideoData> videos) {
+            this.unitId    = unitId;
+            this.courseId  = courseId;
+            this.title     = title;
+            this.sortOrder = sortOrder;
+            this.videos    = videos;
+        }
+    }
+
+    public static final class CourseData {
+        public final int             courseId;
+        public final String          title;
+        public final String          description;
+        public final String          instructor;
+        public final String          times;
+        public final String          startDate;
+        public final String          level;
+        public final String          price;
+        public final String          thumbnail;
+        public final String          liveUrl;
+        public final boolean         inSession;
+        public final List<UnitData>  units;
+
+        public CourseData(int courseId, String title, String description,
+                          String instructor, String times, String startDate,
+                          String level, String price, String thumbnail,
+                          String liveUrl, boolean inSession, List<UnitData> units) {
+            this.courseId   = courseId;
+            this.title      = title;
+            this.description = description;
+            this.instructor = instructor;
+            this.times      = times;
+            this.startDate  = startDate;
+            this.level      = level;
+            this.price      = price;
+            this.thumbnail  = thumbnail;
+            this.liveUrl    = liveUrl;
+            this.inSession  = inSession;
+            this.units      = units;
+        }
+    }
+
     //database class attributes and constructor + helper methods
     private final String dbUri;
 
@@ -941,6 +1012,258 @@ public class Database{
             return null;
         }
     }
+    /* -------------------------------------------------------------
+     *                       COURSE METHODS
+     * ------------------------------------------------------------- */
+    // public CourseData(int courseId, String title, String description,
+    //                       String instructor, String times, String startDate,
+    //                       String level, String price, String thumbnail,
+    //                       String liveUrl, boolean inSession, List<UnitData> units) {
+    //         this.courseId   = courseId;
+    //         this.title      = title;
+    //         this.description = description;
+    //         this.instructor = instructor;
+    //         this.times      = times;
+    //         this.startDate  = startDate;
+    //         this.level      = level;
+    //         this.price      = price;
+    //         this.thumbnail  = thumbnail;
+    //         this.liveUrl    = liveUrl;
+    //         this.inSession  = inSession;
+    //         this.units      = units;
+    //     }
+    // String sql =
+    //         "INSERT INTO comments (msg_id, comment, valid, unique_id) " +
+    //         "VALUES (?, ?, true, ?) RETURNING comment_id";
+    // try (Connection conn = getConnection();
+    //         PreparedStatement ps = conn.prepareStatement(sql)) {
 
+    //         ps.setInt(1, msgId);
+    //         ps.setString(2, comment);
+    //         ps.setString(3, userId);
+
+    //         try (ResultSet rs = ps.executeQuery()) {
+    //             System.out.println(rs);
+    //             if (rs.next()) return rs.getInt("comment_id");
+    //             return -1;
+    //         }
+
+    //     } catch (SQLException e) {
+    //         e.printStackTrace();
+    //         return -1;
+    //     }
+    public int createCourse(String title, String description, String instructor, String times,
+        String start_date, String level, String price, String live_url){
+        String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+ 
+        "price, live_url) "+
+        "VALUES (?,?,?,?,?,?,?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,instructor);
+            ps.setString(4,times);
+            ps.setString(5,start_date);
+            ps.setString(6,level);
+            ps.setString(7,price);
+            ps.setString(8,live_url);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()) return rs.getInt("course_id");
+                return -1;
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int createUnit(String unitName, int courseId){
+        String insertUnit = "INSERT INTO course_units (course_id, title) VALUES (?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertUnit)){
+            ps.setInt(1,courseId);
+            ps.setString(2,unitName);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()) return rs.getInt("unit_id");
+                return -1;
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /** Load all units + videos for a given course_id */
+    private List<UnitData> selectUnitsForCourse(Connection conn, int courseId) throws SQLException {
+        List<UnitData> units = new ArrayList<>();
+        String unitSql = "SELECT unit_id, course_id, title, sort_order FROM course_units " +
+                         "WHERE course_id = ? ORDER BY sort_order";
+        try (PreparedStatement ps = conn.prepareStatement(unitSql)) {
+            ps.setInt(1, courseId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int unitId = rs.getInt("unit_id");
+                    List<VideoData> videos = selectVideosForUnit(conn, unitId);
+                    units.add(new UnitData(
+                        unitId,
+                        rs.getInt("course_id"),
+                        rs.getString("title"),
+                        rs.getInt("sort_order"),
+                        videos
+                    ));
+                }
+            }
+        }
+        return units;
+    }
+
+    /** Load all videos for a given unit_id */
+    private List<VideoData> selectVideosForUnit(Connection conn, int unitId) throws SQLException {
+        List<VideoData> videos = new ArrayList<>();
+        String sql = "SELECT video_id, unit_id, title, drive_url, duration, sort_order " +
+                     "FROM unit_videos WHERE unit_id = ? ORDER BY sort_order";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, unitId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    videos.add(new VideoData(
+                        rs.getInt("video_id"),
+                        rs.getInt("unit_id"),
+                        rs.getString("title"),
+                        rs.getString("drive_url"),
+                        rs.getString("duration"),
+                        rs.getInt("sort_order")
+                    ));
+                }
+            }
+        }
+        return videos;
+    }
+
+    /** Build a CourseData from a ResultSet row (connection still open) */
+    private CourseData courseFromRow(Connection conn, ResultSet rs) throws SQLException {
+        int courseId = rs.getInt("course_id");
+        return new CourseData(
+            courseId,
+            rs.getString("title"),
+            rs.getString("description"),
+            rs.getString("instructor"),
+            rs.getString("times"),
+            rs.getString("start_date"),
+            rs.getString("level"),
+            rs.getString("price"),
+            rs.getString("thumbnail"),
+            rs.getString("live_url"),
+            rs.getBoolean("in_session"),
+            selectUnitsForCourse(conn, courseId)
+        );
+    }
+
+    /** GET /courses — all courses */
+    public List<CourseData> selectAllCourses() {
+        List<CourseData> res = new ArrayList<>();
+        String sql = "SELECT * FROM courses ORDER BY course_id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                res.add(courseFromRow(conn, rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
+    /** GET /courses/{id} — single course with full unit/video tree */
+    public CourseData selectCourse(int courseId) {
+        String sql = "SELECT * FROM courses WHERE course_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, courseId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                return courseFromRow(conn, rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /** GET /courses/enrolled/{uuid} — courses the user is enrolled in */
+    public List<CourseData> selectEnrolledCourses(String uuid) {
+        List<CourseData> res = new ArrayList<>();
+        String sql =
+            "SELECT c.* FROM courses c " +
+            "JOIN enrollments e ON c.course_id = e.course_id " +
+            "WHERE e.unique_id = ? ORDER BY e.enrolled_at";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, uuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    res.add(courseFromRow(conn, rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
+    /**
+     * POST /courses/{id}/enroll — enroll a user.
+     * Returns 1 on success, 0 if already enrolled, -1 on error.
+     */
+    public int enrollUser(int courseId, String uuid) {
+        String sql = "INSERT INTO enrollments (unique_id, course_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, uuid);
+            ps.setInt(2, courseId);
+            return ps.executeUpdate(); // 1 = inserted, 0 = already existed
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /**
+     * DELETE /courses/{id}/enroll — unenroll a user.
+     * Returns rows deleted (1) or 0 if not enrolled.
+     */
+    public int unenrollUser(int courseId, String uuid) {
+        String sql = "DELETE FROM enrollments WHERE course_id = ? AND unique_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, courseId);
+            ps.setString(2, uuid);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /** Returns true if the user is enrolled in the given course */
+    public boolean isEnrolled(int courseId, String uuid) {
+        String sql = "SELECT 1 FROM enrollments WHERE course_id = ? AND unique_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, courseId);
+            ps.setString(2, uuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
     
 }
