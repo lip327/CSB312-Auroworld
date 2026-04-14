@@ -6,6 +6,8 @@ import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
 import { corsHeaders } from "@supabase/supabase-js/cors";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 function Login(){
@@ -17,6 +19,40 @@ function Login(){
     }
     function signup(){
         navigate("/signup")
+    }
+
+    async function showPassword(){
+        // console.log(document.getElementById("password").type)
+        if (document.getElementById("password").type==="password"){
+            document.getElementById("password").type="text"
+            document.getElementById("toggleIcon").classList.remove('fa-eye');
+            document.getElementById("toggleIcon").classList.add('fa-eye-slash');
+        }
+        else{
+            document.getElementById("password").type="password"
+            document.getElementById("toggleIcon").classList.remove('fa-eye-slash');
+            document.getElementById("toggleIcon").classList.add('fa-eye');
+        }
+        return
+    }
+
+    async function resetPasswordButton(){
+        const email = window.prompt("Please enter your email for your account: ")
+
+        console.log("resetPasswordButton email: "+email)
+
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'http://localhost:3000/resetpass',
+        })
+        if(error){
+            alert("Problem sending reset password to your email. Try again")
+            return
+        }
+        else{
+            window.alert("Check your email to reset your password.")
+            console.log(data)
+            return
+        }
     }
 
     async function userpassLoginButton(){
@@ -134,15 +170,32 @@ function Login(){
                     <input type="text" id="email" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' }}>
+                {/* <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' }}>
                     <label>Password</label>
-                    <input type="text" id="password" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>
+                    <div className = "password-container" style={{position:"relative"}}>
+                        <input type="password" id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
+                        <button className="showPassword" onClick={showPassword} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
+                            <i id="toggleIcon" className="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div> */}
+                <div className = "password-container" style={{position:"relative"}}>
+                    <label>Password</label>
+                    <input type="password" id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
+                    <button className="showPassword" onClick={showPassword} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
+                        <i id="toggleIcon" className="fas fa-eye"></i>
+                    </button>
                 </div>
 
                 <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
                     <Button onClick={userpassLoginButton}>Login</Button>
                     <Button variant="secondary" onClick={signup}>Sign Up</Button>
                 </div>
+
+                <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                    <Button onClick={resetPasswordButton}>Reset Password</Button>
+                </div>
+
             </Card>
         </div>
     );
