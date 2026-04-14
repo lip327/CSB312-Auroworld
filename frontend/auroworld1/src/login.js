@@ -5,13 +5,14 @@ import { jwtDecode } from "jwt-decode";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
-import { corsHeaders } from "@supabase/supabase-js/cors";
+import { useUser } from './UserContext.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 function Login(){
     const navigate = useNavigate();
+    const { refreshUser } = useUser();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
     function handleLogout(){
@@ -74,6 +75,7 @@ function Login(){
             return null
         }
         console.log(data)
+        await refreshUser();
         navigate("/posts")
 
     }
@@ -154,6 +156,7 @@ function Login(){
         } catch(error){
             console.error(error.message)
         }
+        await refreshUser();
         navigate("/posts");
     }
     return(
