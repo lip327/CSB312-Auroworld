@@ -1,31 +1,83 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
-const ZOOM_LINK = 'https://lehigh.zoom.us/j/98398084113';
+const supabase = createClient(
+  'https://rduempiojxizkwwbzaml.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
+);
 
-const events = [
-  {
-    id: 1,
-    title: 'Class Meeting',
-    date: new Date(2026, 3, 7),
-    startHour: 17,
-    startMinute: 30,
-    endHour: 18,
-    endMinute: 0,
-    color: '#1a73e8',
-    zoomLink: ZOOM_LINK,
+const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
+
+const COURSE_COLORS = ['#1a73e8', '#0f9d58', '#f4511e', '#8430ce', '#e91e63', '#00bcd4', '#ff6d00'];
+
+function parseCourseSchedule(timesStr) {
+  if (!timesStr) return null;
+  const s = timesStr.trim();
+
+  const timePattern = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/gi;
+  const matches = [...s.matchAll(timePattern)];
+  if (matches.length === 0) return null;
+
+  const toTime = (m) => {
+    let h = parseInt(m[1]);
+    const min = m[2] ? parseInt(m[2]) : 0;
+    const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return { hour: h, minute: min };
+  };
+
+  const start = toTime(matches[0]);
+  const end = matches.length >= 2 ? toTime(matches[1]) : { hour: start.hour + 1, minute: start.minute };
+
+  let dayPart = s.split(/\d/)[0].toUpperCase();
+
+  const days = new Set();
+  dayPart = dayPart
+    .replace(/THUR?S?/g, '4')
+    .replace(/SUND?A?Y?/g, '0')
+    .replace(/SATU?R?D?A?Y?/g, '6')
+    .replace(/MOND?A?Y?/g, '1')
+    .replace(/TUES?D?A?Y?/g, '2')
+    .replace(/WEDN?E?S?D?A?Y?/g, '3')
+    .replace(/FRID?A?Y?/g, '5')
+    .replace(/TH/g, '4')
+    .replace(/SU/g, '0')
+    .replace(/SA/g, '6')
+    .replace(/M/g, '1')
+    .replace(/TU/g, '2')
+    .replace(/W/g, '3')
+    .replace(/F/g, '5')
+    .replace(/T/g, '2')
+    .replace(/R/g, '4')
+    .replace(/S/g, '6');
+
+  for (const ch of dayPart) {
+    if ('0123456'.includes(ch)) days.add(parseInt(ch));
   }
-];
 
-function Calendar() { 
+  if (days.size === 0) return null;
+
+  return {
+    days: [...days],
+    startHour: start.hour,
+    startMinute: start.minute,
+    endHour: end.hour,
+    endMinute: end.minute,
+  };
+}
+
+function Calendar() {
   const location = useLocation();
   const passedDate = location.state?.selectedDate ? new Date(location.state.selectedDate) : new Date();
 
   const [selectedDate, setSelectedDate] = useState(passedDate);
   const [panelDate, setPanelDate] = useState(passedDate);
   const [viewMode, setViewMode] = useState('day');
+  const [courseEvents, setCourseEvents] = useState([]);
 
   const scrollRef = useRef(null);
 
@@ -35,6 +87,38 @@ function Calendar() {
       const scrollTo = (now.getHours() * 60 + now.getMinutes()) - 60;
       scrollRef.current.scrollTop = scrollTo > 0 ? scrollTo : 0;
     }
+  }, []);
+
+  useEffect(() => {
+    async function loadEnrolledCourses() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      try {
+        const res = await fetch(`${API}/courses/enrolled/${user.id}`);
+        const data = await res.json();
+        const courses = data.mData || [];
+        const events = [];
+        courses.forEach((course, index) => {
+          const schedule = parseCourseSchedule(course.times);
+          if (!schedule) return;
+          events.push({
+            courseId: course.courseId,
+            title: course.title,
+            color: COURSE_COLORS[index % COURSE_COLORS.length],
+            liveUrl: course.liveUrl || null,
+            days: schedule.days,
+            startHour: schedule.startHour,
+            startMinute: schedule.startMinute,
+            endHour: schedule.endHour,
+            endMinute: schedule.endMinute,
+          });
+        });
+        setCourseEvents(events);
+      } catch (e) {
+        console.error('loadEnrolledCourses:', e);
+      }
+    }
+    loadEnrolledCourses();
   }, []);
 
   const daysInMonth = new Date(panelDate.getFullYear(), panelDate.getMonth() + 1, 0).getDate();
@@ -53,7 +137,7 @@ function Calendar() {
   const handleDayClick = (day) => {
     const newDate = new Date(panelDate.getFullYear(), panelDate.getMonth(), day);
     setSelectedDate(newDate);
-    setPanelDate(newDate); 
+    setPanelDate(newDate);
   };
 
   const renderYearView = () => {
@@ -62,20 +146,11 @@ function Calendar() {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '10px' }}>
         {years.map(y => (
-          <div
-            key={y}
-            onClick={() => handleYearClick(y)}
-            className="calendar-day-hover"
-            style={{ 
-              padding: '15px 0', 
-              textAlign: 'center', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              backgroundColor: y === selectedDate.getFullYear() ? '#333' : 'transparent', 
+          <div key={y} onClick={() => handleYearClick(y)} className="calendar-day-hover"
+            style={{ padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer',
+              backgroundColor: y === selectedDate.getFullYear() ? '#333' : 'transparent',
               color: y === selectedDate.getFullYear() ? '#fff' : '#333',
-              fontWeight: y === selectedDate.getFullYear() ? 'bold' : 'normal' 
-            }}
-          >
+              fontWeight: y === selectedDate.getFullYear() ? 'bold' : 'normal' }}>
             {y}
           </div>
         ))}
@@ -88,20 +163,11 @@ function Calendar() {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '10px' }}>
         {months.map((m, index) => (
-          <div
-            key={m}
-            onClick={() => handleMonthClick(index)}
-            className="calendar-day-hover"
-            style={{ 
-              padding: '15px 0', 
-              textAlign: 'center', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              backgroundColor: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#333' : 'transparent', 
+          <div key={m} onClick={() => handleMonthClick(index)} className="calendar-day-hover"
+            style={{ padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer',
+              backgroundColor: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#333' : 'transparent',
               color: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#fff' : '#333',
-              fontWeight: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? 'bold' : 'normal' 
-            }}
-          >
+              fontWeight: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? 'bold' : 'normal' }}>
             {m}
           </div>
         ))}
@@ -113,7 +179,6 @@ function Calendar() {
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => i);
     const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', textAlign: 'center', marginTop: '10px' }}>
         {weekDays.map((d, i) => (
@@ -123,23 +188,11 @@ function Calendar() {
         {days.map(d => {
           const isSelected = d === selectedDate.getDate() && panelDate.getMonth() === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear();
           return (
-            <div
-              key={d}
-              onClick={() => handleDayClick(d)}
-              className="calendar-day-hover"
-              style={{
-                width: '30px', 
-                height: '30px', 
-                lineHeight: '30px', 
-                margin: '0 auto', 
-                borderRadius: '50%', 
-                cursor: 'pointer', 
-                fontSize: '14px',
+            <div key={d} onClick={() => handleDayClick(d)} className="calendar-day-hover"
+              style={{ width: '30px', height: '30px', lineHeight: '30px', margin: '0 auto', borderRadius: '50%', cursor: 'pointer', fontSize: '14px',
                 backgroundColor: isSelected ? '#333' : 'transparent',
                 color: isSelected ? '#fff' : '#333',
-                fontWeight: isSelected ? 'bold' : 'normal'
-              }}
-            >
+                fontWeight: isSelected ? 'bold' : 'normal' }}>
               {d}
             </div>
           );
@@ -164,42 +217,44 @@ function Calendar() {
   });
 
   const getEventBlocks = () => {
-    return events.map(event => {
-      const dayIndex = weekDates.findIndex(d =>
-        d.getFullYear() === event.date.getFullYear() &&
-        d.getMonth() === event.date.getMonth() &&
-        d.getDate() === event.date.getDate()
-      );
-      if (dayIndex === -1) return null;
-      const topPx = event.startHour * 60 + event.startMinute;
-      const heightPx = (event.endHour * 60 + event.endMinute) - topPx;
-      return { ...event, dayIndex, topPx, heightPx };
-    }).filter(Boolean);
+    const blocks = [];
+    courseEvents.forEach(event => {
+      weekDates.forEach((date, dayIndex) => {
+        const dow = date.getDay();
+        if (event.days.includes(dow)) {
+          const topPx = event.startHour * 60 + event.startMinute;
+          const heightPx = (event.endHour * 60 + event.endMinute) - topPx;
+          blocks.push({ ...event, dayIndex, topPx, heightPx, date });
+        }
+      });
+    });
+    return blocks;
   };
 
   const eventBlocks = getEventBlocks();
-  const isEventDay = selectedDate.getFullYear() === 2026 && selectedDate.getMonth() === 3 && selectedDate.getDate() === 7;
+
+  const formatTime = (hour, minute) => {
+    const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    const m = minute.toString().padStart(2, '0');
+    const ap = hour >= 12 ? 'PM' : 'AM';
+    return `${h}:${m} ${ap}`;
+  };
+
+  const selectedDayEvents = courseEvents.filter(e => e.days.includes(selectedDate.getDay()));
 
   const monthName = panelDate.toLocaleString('en-US', { month: 'long' });
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      height: '100vh', 
-      backgroundColor: '#f0f2f5', 
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f0f2f5',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      fontSize: '16px',
-      color: '#111'
-    }}>
+      fontSize: '16px', color: '#111' }}>
       <Sidebar />
-      
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Header />
-
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: '20px', gap: '20px' }}>
-          
+
+          {/* Weekly grid */}
           <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '15px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-            
             <div style={{ display: 'flex', borderBottom: '1px solid #eee', padding: '10px 0' }}>
               <div style={{ width: '60px' }}></div>
               {weekDates.map((date, i) => (
@@ -222,57 +277,52 @@ function Calendar() {
                 </div>
               ))}
 
-              {eventBlocks.map(event => (
-                <a 
-                  key={event.id}
-                  href={event.zoomLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {eventBlocks.map((event, idx) => (
+                <div
+                  key={`${event.courseId}-${event.dayIndex}-${idx}`}
+                  onClick={() => event.liveUrl && window.open(event.liveUrl, '_blank')}
                   style={{
                     position: 'absolute',
                     top: event.topPx + 'px',
                     left: `calc(60px + ${event.dayIndex} * ((100% - 60px) / 7) + 2px)`,
                     width: 'calc((100% - 60px) / 7 - 6px)',
-                    height: event.heightPx + 'px',
+                    height: Math.max(event.heightPx, 24) + 'px',
                     backgroundColor: event.color,
                     borderRadius: '6px',
                     padding: '4px 6px',
                     color: 'white',
-                    fontSize: '12px',
-                    textDecoration: 'none',
+                    fontSize: '11px',
                     overflow: 'hidden',
                     zIndex: 10,
-                    cursor: 'pointer',
+                    cursor: event.liveUrl ? 'pointer' : 'default',
                     boxSizing: 'border-box',
-                    boxShadow: '0 2px 6px rgba(26,115,232,0.4)',
+                    boxShadow: `0 2px 6px ${event.color}66`,
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {event.title}
                   </div>
-                  <div style={{ fontSize: '10px', opacity: 0.9 }}>5:30 - 6:00 PM · Zoom</div>
-                </a>
+                  <div style={{ fontSize: '10px', opacity: 0.9 }}>
+                    {formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
+          {/* Right panel */}
           <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
+
             <div style={{ display: 'flex', backgroundColor: '#e0e0e0', borderRadius: '20px', padding: '4px' }}>
               {['Year', 'Month', 'Day'].map(mode => (
-                <div
-                  key={mode}
-                  onClick={() => setViewMode(mode.toLowerCase())}
-                  style={{
-                    flex: 1, textAlign: 'center', padding: '8px 0', borderRadius: '16px', fontSize: '14px', cursor: 'pointer', fontWeight: '600',
+                <div key={mode} onClick={() => setViewMode(mode.toLowerCase())}
+                  style={{ flex: 1, textAlign: 'center', padding: '8px 0', borderRadius: '16px', fontSize: '14px', cursor: 'pointer', fontWeight: '600',
                     backgroundColor: viewMode === mode.toLowerCase() ? '#6b6b6b' : 'transparent',
                     color: viewMode === mode.toLowerCase() ? 'white' : '#666',
-                    transition: 'all 0.2s'
-                  }}
-                >
+                    transition: 'all 0.2s' }}>
                   {mode}
                 </div>
               ))}
@@ -284,13 +334,12 @@ function Calendar() {
                 {viewMode === 'month' && panelDate.getFullYear()}
                 {viewMode === 'year' && 'Select Year'}
               </div>
-              
               {viewMode === 'year' && renderYearView()}
               {viewMode === 'month' && renderMonthView()}
               {viewMode === 'day' && renderDayView()}
             </div>
 
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1 }}>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1, overflowY: 'auto' }}>
               <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '800', color: '#333' }}>My Schedule</h3>
 
               {viewMode !== 'day' && (
@@ -299,21 +348,27 @@ function Calendar() {
                 </div>
               )}
 
-              {viewMode === 'day' && isEventDay && (
-                <a href={ZOOM_LINK} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                  <div style={{ backgroundColor: '#e8f0fe', border: '1px solid #1a73e8', padding: '12px 15px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }}>
-                    <div style={{ fontWeight: 'bold', color: '#1a73e8' }}>Class Meeting</div>
-                    <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>5:30 PM - 6:00 PM</div>
-                    <div style={{ fontSize: '12px', color: '#1a73e8', marginTop: '2px' }}>Click to join Zoom</div>
-                  </div>
-                </a>
-              )}
-
-              {viewMode === 'day' && !isEventDay && (
+              {viewMode === 'day' && selectedDayEvents.length === 0 && (
                 <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#555' }}>
-                  {'No events for day "' + selectedDate.getDate() + '"'}
+                  No classes on this day.
                 </div>
               )}
+
+              {viewMode === 'day' && selectedDayEvents.map(event => (
+                <div key={event.courseId}
+                  onClick={() => event.liveUrl && window.open(event.liveUrl, '_blank')}
+                  style={{ backgroundColor: event.color + '18', border: `1px solid ${event.color}`,
+                    padding: '12px 15px', borderRadius: '10px', fontSize: '14px',
+                    cursor: event.liveUrl ? 'pointer' : 'default', marginBottom: '10px' }}>
+                  <div style={{ fontWeight: 'bold', color: event.color }}>{event.title}</div>
+                  <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>
+                    {formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}
+                  </div>
+                  {event.liveUrl && (
+                    <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>Click to join</div>
+                  )}
+                </div>
+              ))}
             </div>
 
           </div>

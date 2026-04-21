@@ -6,10 +6,27 @@ import Card from './components/Card';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MiniCalendar from './components/MiniCalendar';
+import { useUser } from './UserContext';
 
 function Posts(){
     const navigate=useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+    const { displayName, email, avatarUrl } = useUser();
+
+    function getInitials() {
+        const name = displayName || email || '';
+        const parts = name.trim().split(' ');
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return name[0]?.toUpperCase() || '?';
+    }
+
+    function getAvatarColor() {
+        const colors = ['#6C63FF', '#FF6584', '#43B89C', '#F6B93B', '#E55039', '#2E86AB'];
+        const str = email || '';
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
 
     async function getCurrentUserId(){
         const { data: { user } ,error} = await supabase.auth.getUser()
@@ -22,18 +39,12 @@ function Posts(){
             return user.id
         }
     }
-    // function profileButton(){
-    //     navigate("/profile")
-    // }
     function mainpageButton(){
         navigate("/posts")
     }
     function coursesButton(){
         navigate("/courses")
     }
-    // function signinButton(){
-    //     navigate("/login")
-    // }
     async function signoutButton(){
         const { error } = await supabase.auth.signOut();
         if (!error) {
@@ -103,8 +114,6 @@ function Posts(){
                 alert("File Post failed: "+fileData.mMessage)
                 return
             }
-            //adding file to bucket
-            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
             if(data){
                 console.log(data)
@@ -155,7 +164,6 @@ function Posts(){
     }
     async function editFileInTable(msg_id){
         try{
-
             console.log("editFileInTable msgId: "+msg_id)
             const editFileBody={
                 filename:fileUpload.name
@@ -171,11 +179,6 @@ function Posts(){
                 alert("File Post failed: "+fileData.mMessage)
                 return
             }
-            //adding file to bucket
-            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
-            //const {data} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
-            //console.log(data)
-
         }catch (error){
             console.error(error.message)
         }
@@ -311,7 +314,6 @@ function Posts(){
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
-
     const [fileName, setFileName] = useState("No file chosen");
 
     function uploadImageHandler(e){
@@ -376,8 +378,6 @@ function Posts(){
 
     const[postUsernameQuery,setPostUsernameQuery] = useState("")
 
-    //{data.filter((post)=>post.username.toLowerCase().includes(postUsernameQuery))?.map((post, i) => (
-
     console.log("usestate currentuserid: "+currentUserId)
    
     return(
@@ -393,18 +393,27 @@ function Posts(){
                 
                 <Header username={currentUserName} />
 
-                {/* ↓ 改动1：overflow: 'hidden' 替换 overflowY: 'auto'，去掉 justifyContent: 'center'，gap改为20px */}
                 <div style={{ flex: 1, overflow: 'hidden', padding: '20px', display: 'flex', gap: '20px' }}>
 
-                    {/* ↓ 改动2：去掉 maxWidth: '800px'，改为 overflowY: 'auto' 让内容自己滚动 */}
-                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>                  
-                        <Card style={{ padding: '15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px' }} onClick={postButton}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#d9d9d9' }}></div>
-                                <span style={{ color: '#888', fontSize: '15px' }}>Start a new post...</span>
-                                <Button onClick = {postButton}>Post</Button>
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                        {/* Post composer */}
+                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt="avatar" style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: getAvatarColor(), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+                                    {getInitials()}
+                                </div>
+                            )}
+                            <div
+                                onClick={postButton}
+                                style={{ flex: 1, padding: '10px 16px', borderRadius: '24px', backgroundColor: '#f0f2f5', color: '#888', fontSize: '15px', cursor: 'pointer' }}
+                            >
+                                What's on your mind?
                             </div>
-                        </Card>
+                            <Button onClick={postButton}>Post</Button>
+                        </div>
 
                         <div id="addPost" style={{display:"none"}}>
                             <Card>
@@ -436,40 +445,49 @@ function Posts(){
                             </Card>
                         </div>
 
-                        <select onChange={(e) => setSortType(e.target.value)}>
-                            <option value="sortByNewest">Sort Posts By New</option>
-                            <option value="sortByUpvotes">Sort Posts By Upvotes</option>
-                        </select>
-                        <input type="text" placeholder="Search for Posts By Username..." className="search" onChange={(e) => setPostUsernameQuery(e.target.value)} />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <select onChange={(e) => setSortType(e.target.value)} style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0', backgroundColor: '#fff', fontSize: '14px' }}>
+                                <option value="sortByNewest">Sort Posts By New</option>
+                                <option value="sortByUpvotes">Sort Posts By Upvotes</option>
+                            </select>
+                            <input type="text" placeholder="Search by username..." onChange={(e) => setPostUsernameQuery(e.target.value)} style={{ flex: 2, padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0', fontSize: '14px' }} />
+                        </div>
 
-                        <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {data.filter((post)=>post.username.toLowerCase().includes(postUsernameQuery))?.map((post, i) => (
                             
-                            <Card key={i}>
-                                <div style={{ color: '#888', fontSize: '12px' }}></div>
+                            <div key={i} style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+                                {/* Post header: avatar + username + timestamp */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#6C63FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+                                        {post.username?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: '700', fontSize: '15px', color: '#111' }}>{post.username}</div>
+                                        <div style={{ fontSize: '12px', color: '#aaa' }}>#{post.msgId}</div>
+                                    </div>
+                                    {currentUserId && post.uuid === currentUserId && (
+                                        <button onClick={() => editPostButton(post.msgId)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>Edit</button>
+                                    )}
+                                </div>
+
+                                {/* Post content */}
+                                <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>{post.subject}</div>
+                                <div style={{ fontSize: '15px', color: '#333', lineHeight: '1.5', marginBottom: '14px' }}>{post.message}</div>
 
                                 {imageUrls[post.msgId] && (
-                                    <img
-                                        src={imageUrls[post.msgId]}
-                                        alt="Post attachment"
-                                        width="200"
-                                        style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '10px' }}
-                                    />
+                                    <img src={imageUrls[post.msgId]} alt="Post attachment" style={{ maxWidth: '100%', borderRadius: '10px', marginBottom: '14px' }} />
                                 )}
 
-                                <h2 style={{ marginTop: '10px', marginBottom: '5px' }}>{post.subject}</h2>
-                                <label style={{ display: 'block', marginBottom: '10px' }}>{post.message}</label>
-                                <p style={{ fontSize: '14px', color: '#555' }}>By {post.username}</p>
-                                
-                                <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{post.upvote} Upvotes</p>
-                                
-                                {/* button */}
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                                    {currentUserId && post.uuid === currentUserId && (
-                                        <Button variant="secondary" onClick={() => editPostButton(post.msgId)}>Edit</Button>
-                                    )}
-                                    <Button variant="secondary" onClick={()=> upvoteButton(post.msgId)}>⬆️</Button>
-                                    <Button variant="secondary" onClick={() => commentButton(post.msgId)}>Comment</Button>
+                                {/* Upvote + Comment bar */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
+                                    <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                        ⬆️ {post.upvote}
+                                    </button>
+                                    <button onClick={() => commentButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                        💬 Comment
+                                    </button>
                                 </div>
 
                                 <div id={`editPost-${post.msgId}`} style={{display:"none", marginTop: '15px'}}>
@@ -511,21 +529,26 @@ function Posts(){
                                     
                                 {/* comments */}
                                 {post.commentdata && post.commentdata.length > 0 && (
-                                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {(post.commentdata)?.map((comment,j)=>(
-                                            <div key={j} style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-                                                <label style={{ display: 'block', marginBottom: '5px' }}>{comment.comment}</label>
-                                                <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.username}</p>
-                                                
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
-                                                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>{comment.upvote} Upvotes</p>
-                                                    <Button variant="secondary" onClick={()=> upvoteCommentButton(comment.commentId)}>⬆️</Button>
+                                            <div key={j} style={{ backgroundColor: '#f7f7f7', padding: '12px 14px', borderRadius: '10px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#43B89C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff' }}>
+                                                        {comment.username?.[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#333' }}>{comment.username}</span>
+                                                </div>
+                                                <div style={{ fontSize: '14px', color: '#333', marginBottom: '8px' }}>{comment.comment}</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <button onClick={() => upvoteCommentButton(comment.commentId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#555', fontWeight: '600' }}>
+                                                        ⬆️ {comment.upvote}
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
-                            </Card>
+                            </div>
                             ))}
                         </div>
                     </div>
