@@ -80,7 +80,8 @@ function Signup(){
 
             const account_vals={
                 email:document.getElementById("email").value,
-                username:document.getElementById("username").value
+                username:document.getElementById("username").value,
+                user_uuid:data.user.id
             }
 
             const create_res=await fetch("http://localhost:8080/newuser",{
@@ -89,16 +90,16 @@ function Signup(){
                 body: JSON.stringify(account_vals)
             })
             const create_data=await create_res.json()
+            
+            console.log("create_data response "+create_data.mData)
 
-            console.log("create_data response "+create_data)
-
-            if(data.mStatus!=="ok"){
-                alert("Adding new username and email to users table failed: "+data.mMessage);
+            if(create_data.mStatus!=="ok"){
+                alert("Adding new username and email to users table failed: "+create_data.mMessage);
                 return;
             }
 
-            console.log("account created.")
-            alert("Thank you for registering! Check your email for a confirmation.")
+            //console.log("account created.")
+            alert("Thank you for registering!")
 
             const { data: authListener } = supabase.auth.onAuthStateChange(
                 async (event, session) => {
@@ -147,11 +148,6 @@ function Signup(){
     return(
         
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-            <head><link
-                rel="stylesheet"
-                href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-                />
-            </head>
             <Card style={{ width: '400px' }}>
                 <h2 style={{ marginTop: 0, textAlign: 'center' }}>Welcome to Auroworld!</h2>
                 <p style={{ color: '#666', textAlign: 'center', marginBottom: '20px' }}>Sign up here.</p>

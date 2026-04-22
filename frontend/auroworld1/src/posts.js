@@ -31,24 +31,27 @@ function Posts(){
     function coursesButton(){
         navigate("/courses")
     }
+    function adminButton(){
+        navigate("/admin")
+    }
     // function signinButton(){
     //     navigate("/login")
     // }
     async function signoutButton(){
         const { error } = await supabase.auth.signOut();
         if (!error) {
-            console.log('User signed out successfully and session cleared.');
+            //console.log('User signed out successfully and session cleared.');
             navigate("/login")
         } else {
             console.error('Error signing out:', error.message);
         }
     }
     async function postButton(){
-        console.log("hitting post button");
+        //console.log("hitting post button");
         document.getElementById("addPost").style.display="block";
     }
     async function addPostButton(){
-        console.log("hitting add post button");
+        //console.log("hitting add post button");
         try{
             const current_uuid = await getCurrentUserId()
             const postBody = {
@@ -62,12 +65,12 @@ function Posts(){
                 body: JSON.stringify(postBody)
             });
             const data = await response.json();
-            console.log("Message Post response:",data)
+            //console.log("Message Post response:",data)
             if(data.mStatus!=="ok"){
                 alert("Message Post failed: "+data.mMessage);
                 return;
             }
-            console.log("addPost new message Id= "+data.mData.msgId)
+            //console.log("addPost new message Id= "+data.mData.msgId)
             if(fileUpload) {
                 addFileToTable(data.mData.msgId)
             }
@@ -80,12 +83,12 @@ function Posts(){
        cancelPostButton();
     }
     function cancelPostButton(){
-        console.log("hitting cancel post button");
+        //console.log("hitting cancel post button");
         document.getElementById("addPost").style.display="none";
     }
     async function addFileToTable(msg_id){
         try{
-            console.log("addFileToTable msgId: "+msg_id)
+            //console.log("addFileToTable msgId: "+msg_id)
             const current_uuid = await getCurrentUserId()
             const fileBody={
                 filename:fileUpload.name,
@@ -98,7 +101,7 @@ function Posts(){
                 body: JSON.stringify(fileBody)
             });
             const fileData = await response.json()
-            console.log("File Post response: ",fileData)
+            //console.log("File Post response: ",fileData)
             if (fileData.mStatus!=="ok"){
                 alert("File Post failed: "+fileData.mMessage)
                 return
@@ -119,12 +122,12 @@ function Posts(){
     }
 
     function editPostButton(msg_id){
-        console.log("hitting edit post button");
+        //console.log("hitting edit post button");
         document.getElementById(`editPost-${msg_id}`).style.display="block";
     }
     async function sendEditPostButton(msg_id){
-        console.log("hitting send edit post button ");
-        console.log("msg_id for editpost: "+msg_id)
+        // console.log("hitting send edit post button ");
+        // console.log("msg_id for editpost: "+msg_id)
         try{
             const putBody={
                 subject:document.getElementById(`editTitle-${msg_id}`).value,
@@ -136,7 +139,7 @@ function Posts(){
                 body: JSON.stringify(putBody)
             });
             const data = await response.json()
-            console.log("Edit post response: ",data)
+            //console.log("Edit post response: ",data)
             if (data.mStatus!=="ok"){ 
                 alert("Edit post failed: "+data.mMessage);
                 return
@@ -150,13 +153,13 @@ function Posts(){
         cancelEditPostButton(msg_id);
     }
     function cancelEditPostButton(msg_id){
-        console.log("hitting cancel edit post button");
+        //console.log("hitting cancel edit post button");
         document.getElementById(`editPost-${msg_id}`).style.display="none";
     }
     async function editFileInTable(msg_id){
         try{
 
-            console.log("editFileInTable msgId: "+msg_id)
+            //console.log("editFileInTable msgId: "+msg_id)
             const editFileBody={
                 filename:fileUpload.name
             }
@@ -166,7 +169,7 @@ function Posts(){
                 body: JSON.stringify(editFileBody)
             });
             const fileData = await response.json()
-            console.log("File Post response: ",fileData)
+            //console.log("File Post response: ",fileData)
             if (fileData.mStatus!=="ok"){
                 alert("File Post failed: "+fileData.mMessage)
                 return
@@ -181,11 +184,11 @@ function Posts(){
         }
     }
     function commentButton(msg_id){
-        console.log("hitting comment button");
+        //console.log("hitting comment button");
         document.getElementById(`addComment-${msg_id}`).style.display="block";
     }
     async function addCommentButton(msg_id){
-        console.log("hitting add comment button:"+msg_id);
+        //console.log("hitting add comment button:"+msg_id);
         try{
             const current_uuid = await getCurrentUserId()
             const commBody={
@@ -198,7 +201,7 @@ function Posts(){
                 body: JSON.stringify(commBody)
             })
             const data =await res.json()
-            console.log("Comment data posted:",data)
+            //console.log("Comment data posted:",data)
             if(data.mStatus!=="ok"){
                 alert("Comment failed: "+data.mMessage)
                 return
@@ -210,7 +213,7 @@ function Posts(){
         cancelCommentButton(msg_id)
     }
     async function upvoteButton(msg_id){
-        console.log("hitting upvote button for "+msg_id)
+        //console.log("hitting upvote button for "+msg_id)
         try{
             const current_uuid = await getCurrentUserId()
             const stuff ={
@@ -222,7 +225,7 @@ function Posts(){
                 body: JSON.stringify(stuff)
             })
             const data=await res.json()
-            console.log("Post upvoted: ",data);
+            //console.log("Post upvoted: ",data);
             if(data.mStatus!=="ok"){
                 return
             }
@@ -231,7 +234,7 @@ function Posts(){
         }
     }
     async function upvoteCommentButton(comment_id){
-        console.log("hitting comment upvote button for "+comment_id)
+        //console.log("hitting comment upvote button for "+comment_id)
         try{
             const current_uuid = await getCurrentUserId()
             const stuff ={
@@ -243,7 +246,7 @@ function Posts(){
                 body: JSON.stringify(stuff)
             })
             const data = await res.json()
-            console.log("Comment upvoted: ",data);
+            //console.log("Comment upvoted: ",data);
             if(data.mStatus!=="ok"){
                 return
             }
@@ -252,8 +255,32 @@ function Posts(){
         }
     }
     function cancelCommentButton(msg_id){
-        console.log("hitting cancel comment button");
+        //console.log("hitting cancel comment button");
         document.getElementById(`addComment-${msg_id}`).style.display="none";
+    }
+
+    async function downloadFile(msg_id){
+        const downloadFilename = imageUrls[msg_id].split('/').pop()
+        //console.log(downloadFilename)
+
+        const { data, error } = await supabase
+            .storage
+            .from('community_feed_file_upload')
+            .download('posts/'+msg_id+'/'+downloadFilename)
+        if(error){
+            console.log("downloadFile: "+error)
+            alert("Problem downloading file, try again later")
+            return
+        }
+        else if(data){
+            //console.log(data)
+            const url = URL.createObjectURL(data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = downloadFilename;
+            link.click();
+            return
+        }
     }
     
     const [posts, setPosts] = useState([])
@@ -265,11 +292,12 @@ function Posts(){
             fetch(`http://localhost:8080/messages`)
             .then(res => res.json())
             .then(data => {
-                console.log("FULL RESPONSE:", data)
-                console.log("Posts mData:", data.mData)
+                // console.log("FULL RESPONSE:", data)
+                // console.log("Posts mData:", data.mData)
                 setPosts(data.mData);
             })
             .catch(err => console.error("FETCH ERROR for getting posts:", err))
+            
         }
         gatherMyPosts()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,7 +317,7 @@ function Posts(){
                         .getPublicUrl(
                             post.filepath
                         );
-                    console.log("data from community_feed: ",data)
+                    //console.log("data from community_feed: ",data)
                     if (data && data.publicUrl) {
                         console.log('Public URL:', data.publicUrl);
                     } else {
@@ -381,12 +409,13 @@ function Posts(){
     console.log("usestate currentuserid: "+currentUserId)
    
     return(
-        <div style={{ display: 'flex', height: '100vh', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
+        <div style={{ display: 'flex', height: '100vh', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#E3C7E6', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
             
             <Sidebar 
                 onMainpage={mainpageButton} 
                 onCourses={coursesButton}
                 onSignout={signoutButton} 
+                onAdmin={adminButton}
             />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -397,9 +426,10 @@ function Posts(){
                 <div style={{ flex: 1, overflow: 'hidden', padding: '20px', display: 'flex', gap: '20px' }}>
 
                     {/* ↓ 改动2：去掉 maxWidth: '800px'，改为 overflowY: 'auto' 让内容自己滚动 */}
-                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>                  
-                        <Card style={{ padding: '15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px' }} onClick={postButton}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>  
+                        {/*#e0e0e0*/}           
+                        <Card style={{ padding: '15px', cursor: 'pointer', backgroundColor: '#dfb6f3da', border: '1px solid #d6b4ebb9', borderRadius: '10px' }} onClick={postButton}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>  
                                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#d9d9d9' }}></div>
                                 <span style={{ color: '#888', fontSize: '15px' }}>Start a new post...</span>
                                 <Button onClick = {postButton}>Post</Button>
@@ -462,6 +492,14 @@ function Posts(){
                                 <p style={{ fontSize: '14px', color: '#555' }}>By {post.username}</p>
                                 
                                 <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{post.upvote} Upvotes</p>
+                                
+                                {imageUrls[post.msgId]&& (
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                        <Button variant="secondary" onClick={()=> downloadFile(post.msgId)}>
+                                            <i class="fa-solid fa-download"></i>
+                                        </Button>
+                                    </div>
+                                )}
                                 
                                 {/* button */}
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>

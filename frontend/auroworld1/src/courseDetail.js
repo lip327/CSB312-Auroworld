@@ -78,12 +78,61 @@ function VideoTab({ course }) {
         </div>
     );
 }
+async function editCourseTab(){
+    document.getElementById("editTab").style.display="block";
+}
+
+async function sendEditCourseTabButton(courseId){
+    // console.log(document.getElementById("editTitle").value)
+    // console.log(document.getElementById("editDescription").value)
+    // console.log(document.getElementById("editInstructor").value)
+    // console.log(document.getElementById("edit_start_date").value)
+    // console.log(document.getElementById("editLevel").value)
+    // console.log(document.getElementById("editPrice").value)
+    try{
+        if(!document.getElementById("editTitle").value || !document.getElementById("editDescription").value
+        || !document.getElementById("editInstructor").value || !document.getElementById("edit_start_date").value 
+        || !document.getElementById("editLevel").value || !document.getElementById("editPrice").value){
+            alert("Please fill out all info")
+            return
+        }
+        const editCourseBody={
+            title:document.getElementById("editTitle").value,
+            description:document.getElementById("editDescription").value,
+            instructor:document.getElementById("editInstructor").value,
+            startDate:document.getElementById("edit_start_date").value,
+            level:document.getElementById("editLevel").value,
+            price:document.getElementById("editPrice").value
+        }
+        const response=await fetch(`http://localhost:8080/courses/edit/${courseId}`,{
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(editCourseBody)
+        })
+        const data = await response.json();
+        // console.log("New Course response:",data)
+        if(data.mStatus!=="ok"){
+            alert("Adding course failed: "+data.mMessage);
+            return;
+        }
+        //console.log("result= "+data.mData)
+        return
+        
+    }catch(error){
+        console.log(error.message)
+        return
+    }
+}
+async function cancelEditCourseTab(){
+    document.getElementById("editTab").style.display="none";
+}
 
 // ── Course tab ───────────────────────────────────────────────────────────────
 
 function CourseTab({ course }) {
     return (
         <div style={{ maxWidth: '640px' }}>
+            <button onClick={()=>editCourseTab()}>Edit</button>
             <h2 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800' }}>{course.title}</h2>
             <p style={{ margin: '0 0 4px', fontSize: '14px', color: '#666' }}>Instructor: {course.instructor}</p>
             {course.startDate && (
@@ -102,20 +151,220 @@ function CourseTab({ course }) {
                     <strong>Price:</strong> {course.price}
                 </p>
             )}
+            <div id="editTab" style={{display:'none',marginTop: '15px'}}>
+                <h3 style={{ marginTop: 0 }}>Edit Course Tab</h3>
+                 <label style={{ marginTop: '15px' }}>*Course Title</label>
+                <input type="text" defaultValue={course.title} id="editTitle" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+                <label style={{ marginTop: 0 }}>*Course Description</label>
+                <textarea id="editDescription" defaultValue={course.description} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
+
+                <label style={{ marginTop: 0 }}>*Instructor</label>
+                <input type="text" defaultValue={course.instructor} id="editInstructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+                <label style={{ marginTop: 0 }}>*Start Date</label>
+                <input type="text" defaultValue={course.startDate} id="edit_start_date" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+                <label style={{ marginTop: 0 }}>*Level</label>
+                <select defaultValue= {course.level} id="editLevel" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                    <option>Beginner</option>
+                    <option>Intermediate</option>
+                    <option>Advanced</option>
+                </select>
+
+                <label style={{ marginTop: 0 }}>*Price</label>
+                <select defaultValue={course.price} id="editPrice" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                    <option>Free</option>
+                    <option>Priced</option>
+                </select>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button variant ="secondary" onClick={() => sendEditCourseTabButton(course.courseId)}>Send</button>
+                    <button variant="secondary" onClick={() => cancelEditCourseTab()}>Cancel</button>
+                </div>
+            </div>
         </div>
     );
 }
 
+async function addMaterials(){
+
+    document.getElementById("addVideo").style.display="block"
+}
+async function cancelMaterials(){
+
+    document.getElementById("addVideo").style.display="none"
+}
+async function uploadNewMaterials(filename,unitId,courseId,filedata){
+    console.log("uploading video for unit "+unitId)
+    console.log("for course: "+courseId)
+    if(!document.getElementById("videoTitle").value){
+        alert("Enter a title for upload")
+        return
+    }
+    try{
+        const doesFileExist = await fetch(`http://localhost:8080/unit_videos/${unitId}/${document.getElementById("videoTitle").value}`)
+        const doesFileExistData= await doesFileExist.json()
+
+        if(doesFileExistData.mData){
+            alert("Video with that title in this unit already exists. Give a new title")
+            return
+        }
+        
+        const videoBody={
+            title:document.getElementById("videoTitle").value,
+            filepath:'course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename
+        }
+        const response = await fetch(`http://localhost:8080/course_units/unit/${unitId}`,{
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(videoBody)
+        })
+        const videoData = await response.json();
+        if(videoData.mStatus!=="ok"){
+            alert("Adding video failed: "+videoData.mMessage);
+            return;
+        }
+        console.log("addVideo new video Id= "+videoData.mData)
+        const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename, filedata)
+        if(data){
+            alert('Added video successfully.')
+            //console.log(data)
+        }
+        else{
+            console.log(error.message)
+        }
+        return
+    }catch(error){
+        console.log(error.message)
+        return
+    }
+}
+
 // ── Materials tab — units are collapsible, each has multiple videos ──────────
 
-function UnitSection({ unit }) {
-    const [open,        setOpen]        = useState(false);
+function UnitSection({unit, courseId, unitId} ) {
+    const [open,setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null); // video id
+
+    const [fileUpload,setFileUpload]=useState()
+    const [fileName, setFileName] = useState("No file chosen");
+
+    function uploadFileHandler(e){
+        const file = e.target.files[0];
+        if (file) {
+            setFileUpload(file);
+            setFileName(file.name);
+        }else {
+            setFileName("No file chosen"); 
+        }
+    }
+
+    const [videoUrl,setVideoUrl]=useState([])
+
+    useEffect(()=>{
+        async function getVideoUrls(){
+            if (!unit.videos) return
+            const videoUrlsSet={}
+            for (const video of unit.videos){
+                console.log(video)
+                // const videoUrlString=video.driveUrl
+                // console.log(videoUrlString)
+                if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/`)){
+                    //console.log('has it')
+                    try{
+                        const { data} = supabase.storage
+                            .from('course_videos')
+                            .getPublicUrl(video.driveUrl);
+                        //console.log("data from courses_videos: ",data)
+                        if (data && data.publicUrl) {
+                            //console.log('Public URL:', data.publicUrl);
+                        } else {
+                            console.error('Error getting public URL or URL is undefined');
+                        }
+                        
+                        videoUrlsSet[video.videoId] = data.publicUrl;
+
+                    }catch(err){
+                        console.error(err)
+                        videoUrlsSet[video.videoId]=null
+                    }
+                }
+                else{
+                    videoUrlsSet[video.videoId]=video.driveUrl
+                }
+                //console.log('videoUrlsSet: '+videoUrlsSet)
+            }
+            setVideoUrl(videoUrlsSet)
+        }
+        getVideoUrls()
+        //console.log(videoUrl)
+    },[])
+
+    async function deleteVideo(driveurl, unitId, videoId){
+        console.log("deleteVideo id: "+videoId)
+        console.log("deleteVideo driveurl: "+driveurl)
+        try{
+            const videoEntry=await fetch(`http://localhost:8080/delete/unit_videos/unit/${unitId}/videoId/${videoId}`,{
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            })
+            const videoEntryData= await videoEntry.json()
+            console.log("videoEntryData: "+videoEntryData )
+            if(videoEntryData.mStatus!=="ok"){
+                alert("Deleting video entry failed. Try again later")
+                return
+            }
+            const { data, error } = await supabase
+                .storage
+                .from('course_videos')
+                .remove([driveurl])
+            if(data){
+                alert("Video deleted.")
+                return
+            }
+            else if(error){
+                alert("Deleting video data failed. Try again later")
+                return
+            }
+        }catch(error){
+            console.log(error.message)
+            return
+        }
+    }
 
     return (
         <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden',
                       backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             {/* Unit header / toggle */}
+            <div>
+                <button onClick={addMaterials}>Add video</button>
+                <div id ="addVideo" style={{display: 'none'}}>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <input type="file" id="hiddenAddFileInput" onChange={uploadFileHandler} style={{ display: 'none' }}></input>
+                        <button variant="secondary" onClick={() => document.getElementById("hiddenAddFileInput").click()}>Upload File</button>
+                        
+                        <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
+                    </div>
+
+                     <label style={{ marginTop: 0 }}>Enter Title</label>
+                     <input type="text" id="videoTitle" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+                    {fileUpload &&(
+                        <div style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
+                            <p>Selected File: {fileUpload.name}</p>
+                            <p>Size: {fileUpload.size} bytes</p>
+                            <p>Type: {fileUpload.type}</p>
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={()=>uploadNewMaterials(fileName,unitId,courseId,fileUpload)}>Send</button>
+                        <button variant="secondary" onClick={cancelMaterials}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+
             <div
                 onClick={() => setOpen(o => !o)}
                 style={{
@@ -182,8 +431,11 @@ function UnitSection({ unit }) {
                                     }}>
                                         <span style={{ color: activeVideo === video.videoId ? '#fff' : '#666' }}>▶</span>
                                     </div>
-                                    <div style={{ flex: 1 }}>
+                                    <div className = "video-container" style={{ flex: 1 }}>
                                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>{video.title}</div>
+                                        <button className = "delete-video" onClick={()=>deleteVideo(video.driveUrl,unitId,video.videoId)}>
+                                            <i className="fa-solid fa-trash-can"></i>
+                                        </button>
                                         {video.duration && (
                                             <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{video.duration}</div>
                                         )}
@@ -200,7 +452,8 @@ function UnitSection({ unit }) {
                                     <div style={{ backgroundColor: '#000' }}>
                                         {video.driveUrl && !video.driveUrl.includes('FILE_ID') ? (
                                             <iframe
-                                                src={video.driveUrl}
+                                                //{/*src={video.driveUrl}*/}
+                                                src={videoUrl[video.videoId]}
                                                 width="100%"
                                                 height="420"
                                                 allow="autoplay"
@@ -276,10 +529,11 @@ function MaterialsTab({ course }) {
                 <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                     <button onClick = {newUnitButton}>Add a New Unit</button>
                     <div id="addUnit" style={{display: 'none'}}>
-                         <label style={{ marginTop: 0 }}>Unit name</label>
-                         <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                            <label style={{ marginTop: 0 }}>Unit name</label>
+                            <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
 
-                         <div style={{ display: 'flex', gap: '10px' }}>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                            <button>Create</button>
                             <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
                             <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
                         </div>
@@ -290,8 +544,20 @@ function MaterialsTab({ course }) {
     }
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
+                <button onClick = {newUnitButton}>Add a New Unit</button>
+                <div id="addUnit" style={{display: 'none'}}>
+                        <label style={{ marginTop: 0 }}>Unit name</label>
+                        <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
+                        <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
+                    </div>
+                </div>
+            </div>
             {course.units.map(unit => (
-                <UnitSection key={unit.unitId} unit={unit} />
+                <UnitSection key={unit.unitId} unit={unit} courseId={course.courseId} unitId={unit.unitId}/>
             ))}
         </div>
     );

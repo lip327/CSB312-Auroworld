@@ -109,11 +109,28 @@ function CourseCard({ course, enrolled, onEnroll, onUnenroll, enrolling, onClick
 function Courses() {
     const navigate = useNavigate();
     const [currentUserName, setCurrentUserName] = useState('Loading...');
-    const [currentUserId,   setCurrentUserId]   = useState(null);
-    const [tab,             setTab]             = useState('enrolled');
-    const [allCourses,      setAllCourses]      = useState([]);
-    const [enrolledIds,     setEnrolledIds]     = useState(new Set());
-    const [enrolling,       setEnrolling]       = useState({});
+    const [currentUserId, setCurrentUserId]  = useState(null);
+    const [tab, setTab]  = useState('enrolled');
+    const [allCourses, setAllCourses] = useState([]);
+    const [enrolledIds,  setEnrolledIds] = useState(new Set());
+    const [enrolling, setEnrolling]  = useState({});
+
+    const[instructorList, setInstructorList]=useState([])
+
+    useEffect(()=>{
+        async function getInstructors(){
+            fetch("http://localhost:8080/all/instructors")
+            .then(res => res.json())
+            .then(data => {
+                console.log("FULL RESPONSE:", data)
+                console.log("Instructor list mData:", data.mData)
+                setInstructorList(data.mData);
+            })
+            .catch(err => console.error("FETCH ERROR for getting instructors:", err))
+        }
+        getInstructors()
+
+    },[])
 
     useEffect(() => {
         async function fetchUser() {
@@ -233,12 +250,12 @@ function Courses() {
     }
 
     const enrolledCourses = allCourses.filter(c => enrolledIds.has(c.courseId));
-    const displayList     = tab === 'enrolled' ? enrolledCourses : allCourses;
+    const displayList = tab === 'enrolled' ? enrolledCourses : allCourses;
 
     return (
         <div style={{
             display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden',
-            backgroundColor: '#f0f2f5',
+            backgroundColor: '#E3C7E6',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}>
             <Sidebar />
@@ -262,7 +279,12 @@ function Courses() {
                                 <textarea id="description" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
 
                                 <label style={{ marginTop: 0 }}>*Instructor</label>
-                                <input type="text" id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                                {/* <input type="text" id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} /> */}
+                                <select id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                                    {instructorList.map(instructor => (
+                                        <option key={instructor.unique_id} value={instructor.username}>{instructor.username}</option>
+                                    ))}
+                                </select>
 
                                 <label style={{ marginTop: 0 }}>*Times</label>
                                 <input type="text" id="times" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />

@@ -8,6 +8,7 @@ import ResetPassword from './resetpass.js'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Calendar from './Calendar.js';
 import CourseDetail from './courseDetail';
+import Admin from "./admin.js";
 import { AccessibilityProvider } from './AccessibilityContext.js';
 import { UserProvider } from './UserContext.js';
 
@@ -26,6 +27,7 @@ function App() {
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/signup" element={<Signup />}/>
+                <Route path="/admin" element={<Admin/>}/>
                 <Route path ="/resetpass" element={<ResetPassword />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
