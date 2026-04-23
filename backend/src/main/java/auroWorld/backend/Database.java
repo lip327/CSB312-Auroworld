@@ -152,17 +152,17 @@ public class Database{
     }
 
     public static final class CourseData {
-        public final int             courseId;
-        public final String          title;
-        public final String          description;
-        public final String          instructor;
-        public final String          times;
-        public final String          startDate;
-        public final String          level;
-        public final String          price;
-        public final String          thumbnail;
-        public final String          liveUrl;
-        public final boolean         inSession;
+        public final int  courseId;
+        public final String   title;
+        public final String description;
+        public final String  instructor;
+        public final String   times;
+        public final String startDate;
+        public final String   level;
+        public final String    price;
+        public final String   thumbnail;
+        public final String   liveUrl;
+        public final boolean   inSession;
         public final List<UnitData>  units;
 
         public CourseData(int courseId, String title, String description,
@@ -173,14 +173,35 @@ public class Database{
             this.title      = title;
             this.description = description;
             this.instructor = instructor;
-            this.times      = times;
+            this.times   = times;
             this.startDate  = startDate;
-            this.level      = level;
-            this.price      = price;
-            this.thumbnail  = thumbnail;
-            this.liveUrl    = liveUrl;
-            this.inSession  = inSession;
-            this.units      = units;
+            this.level   = level;
+            this.price   = price;
+            this.thumbnail = thumbnail;
+            this.liveUrl   = liveUrl;
+            this.inSession = inSession;
+            this.units   = units;
+        }
+    }
+
+    public static final class UserData{
+        public final String username;
+        public final String firstname;
+        public final String lastname;
+        public final String email;
+        public final String role;
+        public final String note;
+        public final String unique_id;
+
+        public UserData(String username, String firstname, String lastname, String email,
+            String role, String note, String unique_id){
+            this.username=username;
+            this.firstname=firstname;
+            this.lastname=lastname;
+            this.email=email;
+            this.role=role;
+            this.note=note;
+            this.unique_id=unique_id;
         }
     }
 
@@ -350,11 +371,7 @@ public class Database{
                 ps.setString(5,"user");
                 ps.setString(6,null);
                 ps.setString(7,uuid);
-                
-                int torf=ps.executeUpdate();
-                System.out.println(torf);
-
-                return torf;
+                return ps.executeUpdate();
         }catch(SQLException e){
             e.printStackTrace();
             return -1;
@@ -1052,6 +1069,31 @@ public class Database{
     //         e.printStackTrace();
     //         return -1;
     //     }
+
+    public int editCourseInfo(int courseId, String title, String description, String instructor, 
+    String start_date, String level, String price){
+        
+        String updateCourseInfo = "UPDATE courses SET title = ?, description = ?, instructor =? , "
+        +"start_date = ?, level = ?, price = ? WHERE course_id = ? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(updateCourseInfo)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,instructor);
+            ps.setString(4,start_date);
+            ps.setString(5,level);
+            ps.setString(6,price);
+            ps.setInt(7,courseId);
+            return ps.executeUpdate();
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+        
+    }
+
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url){
         String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+ 
@@ -1096,6 +1138,132 @@ public class Database{
             return -1;
         }
     }
+
+    // public String getVideoFilepath(int videoId, int unitId){
+
+    // }
+
+    public int deleteVideoEntry(int videoId, int unitId){
+        String delete = "DELETE FROM unit_videos WHERE video_id = ? AND unit_id = ? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(delete)){
+            ps.setInt(1,videoId);
+            ps.setInt(2,unitId);
+            return ps.executeUpdate();
+        
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public boolean doesVideoTitleExist(int unitId, String videoTitle){
+        String selectVideoFilepath="SELECT drive_url " +
+        "FROM \"unit_videos\" WHERE \"title\"=? AND \"unit_id\"=? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(selectVideoFilepath)){
+            ps.setString(1,videoTitle);
+            ps.setInt(2,unitId);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()){
+                    return true;
+                }
+                return false;
+            }
+        }catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public int addUnitVideo(int unitId, String title, String filepath){
+        String insertVideo="INSERT INTO unit_videos (unit_id, title, drive_url) VALUES (?,?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertVideo)){
+            ps.setInt(1,unitId);
+            ps.setString(2,title);
+            ps.setString(3,filepath);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()) return rs.getInt("video_id");
+                return -1;
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+    public int changeUserRole(String username, String role, String uuid){
+        String changerole = "UPDATE users SET username=?, role=? WHERE unique_id=? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(changerole)){
+            ps.setString(1,username);
+            ps.setString(2,role);
+            ps.setString(3,uuid);
+            return ps.executeUpdate();
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+    
+    public List<UserData> grabAllInstructors(){
+        String selectinstructors = "SELECT * FROM users WHERE role IN (?, ?) ";
+        List<UserData> instructorList = new ArrayList<>();
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(selectinstructors)){
+            ps.setString(1,"instructor");
+            ps.setString(2,"admin");
+            try(ResultSet rs = ps.executeQuery()){
+                while(rs.next()){
+                    instructorList.add(new UserData(
+                        rs.getString("username"),
+                        rs.getString("firstname"),
+                        rs.getString("lastname"),
+                        rs.getString("email"),
+                        rs.getString("role"),
+                        rs.getString("note"),
+                        rs.getString("unique_id")
+                    ));
+                }
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        return instructorList;
+    }
+
+    public List<UserData> grabAllUsernames(){
+        String selectusers = "SELECT * FROM users ORDER BY username ";
+
+        List<UserData> userList = new ArrayList<>();
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(selectusers)){
+            try(ResultSet rs = ps.executeQuery()){
+                while(rs.next()){
+                    userList.add(new UserData(
+                        rs.getString("username"),
+                        rs.getString("firstname"),
+                        rs.getString("lastname"),
+                        rs.getString("email"),
+                        rs.getString("role"),
+                        rs.getString("note"),
+                        rs.getString("unique_id")
+                    ));
+                }
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        return userList;
+    }
+    
 
     /** Load all units + videos for a given course_id */
     private List<UnitData> selectUnitsForCourse(Connection conn, int courseId) throws SQLException {

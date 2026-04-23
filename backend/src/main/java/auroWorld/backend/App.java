@@ -5,6 +5,7 @@ package auroWorld.backend;
  *
  */
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
@@ -79,6 +80,10 @@ public class App
     private static final class EnrollRequest {
       public String user_uuid;
     }
+    private static final class CheckVideoRequest {
+        public String videoFilepath;
+        public String fileTitle;
+    }
     //class for grabbing infromation from google account you use to sign in 
     private static final class GoogleTokenInfo {
         public String aud;
@@ -129,8 +134,25 @@ public class App
         public String price;
         public String live_url;
     }
+    private static final class ChangeCourseRequest{
+        public String title;
+        public String description;
+        public String instructor;
+        public String startDate;
+        public String level;
+        public String price;
+    }
     private static final class CreateUnitRequest{
         public String unitName;
+    }
+    private static final class AddUnitMaterial{
+        public String filepath;
+        public String title;
+    }
+    private static final class ChangeRoleRequest{
+        public String username;
+        public String role;
+        public String unique_id;
     }
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
@@ -225,7 +247,7 @@ public class App
         app.post("/newuser",ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
-            System.out.println("ctx body for creating account  : "+ctx.body());
+            //System.out.println("ctx body for creating account  : "+ctx.body());
 
             CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
 
@@ -239,15 +261,13 @@ public class App
                 return;
             }
 
-            int result = db.insertNewAccount(car.username,car.email, car.user_uuid,null,null);
+            int outcome = db.insertNewAccount(car.username,car.email, car.user_uuid,null,null);
 
-            System.out.println(result);
-
-            if(result==0){
-                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,result)));
+            if(outcome<0){
+                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,outcome)));
             }
             else{
-                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+                ctx.result(gson.toJson(new StructuredResponse("ok",null,outcome)));
             }
         });
 
@@ -740,6 +760,50 @@ public class App
     //     public String instructor;
 
     // }
+    app.put("/change/role", ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        ChangeRoleRequest crr = gson.fromJson(ctx.body(), ChangeRoleRequest.class);
+
+        if(crr==null || crr.username==null || crr.role==null || crr.unique_id==null){
+            System.out.println(crr);
+            System.out.println(crr.username);
+            System.out.println(crr.role);
+            System.out.println(crr.unique_id);
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin userrole feature", null)));
+                return;
+        }
+        System.out.println(crr);
+        System.out.println(crr.username);
+        System.out.println(crr.role);
+        System.out.println(crr.unique_id);
+
+        int id = db.changeUserRole(crr.username, crr.role,crr.unique_id);
+
+        StructuredResponse resp = new StructuredResponse("ok",null,null);
+        ctx.result(gson.toJson(resp));
+    });
+
+    app.get("/all/instructors",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        List<Database.UserData> instructors = db.grabAllInstructors();
+
+        ctx.result(gson.toJson(new StructuredResponse("ok",null,instructors)));
+    });
+
+    app.get("/get/allusers",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        List<Database.UserData> userlist = db.grabAllUsernames();
+
+        ctx.result(gson.toJson(new StructuredResponse("ok",null,userlist)));
+    });
+
     app.post("/course_units/{id}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
@@ -762,28 +826,113 @@ public class App
 
     });
 
+    app.get("/unit_videos/{id}/{title}", ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        String videoTitle = ctx.pathParam("title");
+        int unitId = Integer.parseInt(ctx.pathParam("id"));
+
+        boolean doesEntryExist = db.doesVideoTitleExist(unitId,videoTitle);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, doesEntryExist)));
+    });
+
+    app.delete("/delete/unit_videos/unit/{unitId}/videoId/{videoId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId=Integer.parseInt(ctx.pathParam("unitId"));
+        int videoId=Integer.parseInt(ctx.pathParam("videoId"));
+
+        int result = db.deleteVideoEntry(videoId,unitId);
+
+        if(result<=0){
+            ctx.result(gson.toJson(new StructuredResponse("error",null,null)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,null)));
+        }
+    });
+
+    app.post("/course_units/unit/{id}", ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId = Integer.parseInt(ctx.pathParam("id"));
+
+        AddUnitMaterial aum = gson.fromJson(ctx.body(), AddUnitMaterial.class);
+
+        if(aum==null || aum.title==null || aum.filepath==null){
+            System.out.println(aum);
+            System.out.println(aum.title);
+            System.out.println(aum.filepath);
+             ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin video attribute", null)));
+                return;
+        }
+
+        int videoId = db.addUnitVideo(unitId, aum.title,aum.filepath);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, videoId)));
+    });
+
+    app.put("/courses/edit/{cId}", ctx ->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int courseId = Integer.parseInt(ctx.pathParam("cId"));
+
+        ChangeCourseRequest ccr = gson.fromJson(ctx.body(),ChangeCourseRequest.class);
+
+        if (ccr == null || ccr.title ==null || ccr.description == null 
+        || ccr.instructor==null || ccr.startDate ==null || ccr.level==null
+        || ccr.price==null ) {
+            System.out.println(ccr);
+            System.out.println(ccr.title);
+            System.out.println(ccr.description);
+            System.out.println(ccr.instructor);
+            System.out.println(ccr.startDate);
+            System.out.println(ccr.level);
+            System.out.println(ccr.price);
+            ctx.result(gson.toJson(new StructuredResponse(
+                    "error", "missgin course feature", null)));
+            return;
+        }
+        
+        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.startDate, 
+            ccr.level, ccr.price);
+
+        if(id<=0){
+            ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
+        }
+    });
+
     app.post("/courses", ctx ->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         CreateCourseRequest ccr = gson.fromJson(ctx.body(), CreateCourseRequest.class);
 
-            if (ccr == null || ccr.title ==null || ccr.description == null 
-            || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
-            || ccr.price==null || ccr.live_url==null) {
-                System.out.println(ccr);
-                System.out.println(ccr.title);
-                System.out.println(ccr.description);
-                System.out.println(ccr.instructor);
-                System.out.println(ccr.times);
-                System.out.println(ccr.startDate);
-                System.out.println(ccr.level);
-                System.out.println(ccr.price);
-                System.out.println(ccr.live_url);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missgin course feature", null)));
-                return;
-            }
+        if (ccr == null || ccr.title ==null || ccr.description == null 
+        || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+        || ccr.price==null || ccr.live_url==null) {
+            System.out.println(ccr);
+            System.out.println(ccr.title);
+            System.out.println(ccr.description);
+            System.out.println(ccr.instructor);
+            System.out.println(ccr.times);
+            System.out.println(ccr.startDate);
+            System.out.println(ccr.level);
+            System.out.println(ccr.price);
+            System.out.println(ccr.live_url);
+            ctx.result(gson.toJson(new StructuredResponse(
+                    "error", "missgin course feature", null)));
+            return;
+        }
 
         int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate, 
             ccr.level, ccr.price, ccr.live_url);

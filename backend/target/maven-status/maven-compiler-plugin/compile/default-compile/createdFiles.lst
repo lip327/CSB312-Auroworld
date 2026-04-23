@@ -1,9 +1,12 @@
+auroworld\backend\App$ChangeRoleRequest.class
+auroworld\backend\App$AddUnitMaterial.class
 auroworld\backend\App$GoogleAccountRequest.class
 auroworld\backend\Database$CommentData.class
 auroworld\backend\App$CreateFileRequest.class
 auroworld\backend\App$CreateMessageRequest.class
 auroworld\backend\App$SessionManager.class
 auroworld\backend\Database$CourseData.class
+auroworld\backend\App$ChangeCourseRequest.class
 auroworld\backend\App$CreateCourseRequest.class
 auroworld\backend\App$CreateUpdateRequest.class
 auroworld\backend\App.class
@@ -11,10 +14,12 @@ auroworld\backend\Database$ProfilePublicData.class
 auroworld\backend\Database$VideoData.class
 auroworld\backend\App$CreateVoteRequest.class
 auroworld\backend\Database$UnitData.class
+auroworld\backend\App$CheckVideoRequest.class
 auroworld\backend\App$GoogleTokenInfo.class
 auroworld\backend\App$CreateUnitRequest.class
 auroworld\backend\App$ChangeFileRequest.class
 auroworld\backend\App$CreateAccountRequest.class
+auroworld\backend\Database$UserData.class
 auroworld\backend\App$EnrollRequest.class
 auroworld\backend\App$CreateCommentRequest.class
 auroworld\backend\Database$FileData.class
