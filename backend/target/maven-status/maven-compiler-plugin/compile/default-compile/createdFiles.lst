@@ -6,7 +6,9 @@ auroworld\backend\App$CreateFileRequest.class
 auroworld\backend\App$CreateMessageRequest.class
 auroworld\backend\App$SessionManager.class
 auroworld\backend\Database$CourseData.class
+auroworld\backend\App$ChangeCommentRequest.class
 auroworld\backend\App$ChangeCourseRequest.class
+auroworld\backend\App$DeleteMessageRequest.class
 auroworld\backend\App$CreateCourseRequest.class
 auroworld\backend\App$CreateUpdateRequest.class
 auroworld\backend\App.class
@@ -21,6 +23,7 @@ auroworld\backend\App$ChangeFileRequest.class
 auroworld\backend\App$CreateAccountRequest.class
 auroworld\backend\Database$UserData.class
 auroworld\backend\App$EnrollRequest.class
+auroworld\backend\App$CommentVoteRequest.class
 auroworld\backend\App$CreateCommentRequest.class
 auroworld\backend\Database$FileData.class
 auroworld\backend\StructuredResponse.class

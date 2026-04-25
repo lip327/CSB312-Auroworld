@@ -6,25 +6,53 @@ import Card from './components/Card';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MiniCalendar from './components/MiniCalendar';
+import { useUser } from './UserContext';
 
 function Posts(){
     const navigate=useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+    const { displayName, email, avatarUrl } = useUser();
+
+    function getInitials() {
+        const name = displayName || email || '';
+        const parts = name.trim().split(' ');
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return name[0]?.toUpperCase() || '?';
+    }
+
+    function getAvatarColor() {
+        const colors = ['#6C63FF', '#FF6584', '#43B89C', '#F6B93B', '#E55039', '#2E86AB'];
+        const str = email || '';
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
 
     async function getCurrentUserId(){
         const { data: { user } ,error} = await supabase.auth.getUser()
         if(error){
-            console.log("problem grabbing uuid" +error.message)
+            //console.log("problem grabbing uuid" +error.message)
             return
         }
         else if(user){
-            console.log("current user's unique id: "+user.id)
+            //console.log("current user's unique id: "+user.id)
             return user.id
         }
     }
-    // function profileButton(){
-    //     navigate("/profile")
-    // }
+    async function getUsername(uuid){
+        try{
+            const usernameResponse = await fetch(`http://localhost:8080/username/${uuid}`)
+            const usernameData = await usernameResponse.json()
+            if (usernameData.mStatus!=="ok"){
+                alert("Problem grabbing username")
+            }
+            return usernameData.mData
+        }catch(error){
+            console.log(error.message)
+        }
+        return
+    }
+
     function mainpageButton(){
         navigate("/posts")
     }
@@ -54,6 +82,8 @@ function Posts(){
         //console.log("hitting add post button");
         try{
             const current_uuid = await getCurrentUserId()
+            const username = await getUsername(current_uuid)
+            console.log("username: "+username)
             const postBody = {
                 subject: document.getElementById("newTitle").value,
                 message: document.getElementById("newPost").value,
@@ -65,22 +95,36 @@ function Posts(){
                 body: JSON.stringify(postBody)
             });
             const data = await response.json();
-            //console.log("Message Post response:",data)
+            console.log("Message Post response:",data)
             if(data.mStatus!=="ok"){
-                alert("Message Post failed: "+data.mMessage);
+                alert("Message Post failed some fields are empty");
                 return;
             }
-            //console.log("addPost new message Id= "+data.mData.msgId)
+            console.log("addPost new message Id= "+data.mData.msgId)
             if(fileUpload) {
                 addFileToTable(data.mData.msgId)
             }
-            return
-            
+            testDomButton(
+                document.getElementById("newTitle").value, document.getElementById("newPost").value,
+                0, username, data.mData.msgId, []
+            )
         } catch(error){
             console.error(error.message)
         }
-        
-       cancelPostButton();
+        cancelPostButton();
+    }
+    function testDomButton(title, message, upvote, username, msg_id,comments){
+        const newPost=[
+            {msgId:msg_id,
+            subject:title,
+            message: message,
+            upvote: upvote,
+            username: username,
+            commentdata: comments,}
+        ]
+        setPosts((prevPosts)=>{
+            return [...prevPosts,...newPost]
+        })
     }
     function cancelPostButton(){
         //console.log("hitting cancel post button");
@@ -106,8 +150,6 @@ function Posts(){
                 alert("File Post failed: "+fileData.mMessage)
                 return
             }
-            //adding file to bucket
-            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
             if(data){
                 console.log(data)
@@ -119,6 +161,81 @@ function Posts(){
         }catch (error){
             console.error(error.message)
         }
+    }
+    function editCommentButton(com_id){
+        document.getElementById(`editComment-${com_id}`).style.display="block"
+    }
+    async function sendEditCommentButton(msg_id,com_id){
+        try{
+            const comBody={
+                comment:document.getElementById(`editCommentText-${com_id}`).value,
+            }
+            const response = await fetch(`http://localhost:8080/put/comment/${com_id}`,{
+                method:"PUT",
+                headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(comBody)
+            })
+            const editCommentData = await response.json()
+            if(editCommentData.mStatus!=="ok"){
+                alert("Editing comment failed. Try again later")
+                return
+            }
+            editCommentDom(msg_id,com_id,document.getElementById(`editCommentText-${com_id}`).value)
+            cancelEditCommentButton(com_id)
+            return
+        }catch(error){
+            console.log(error.message)
+        }
+        return
+    }
+    // function commentUpvoteDom(msg_id,com_id,change){
+    //     const updatedPosts = posts.map((post)=>{
+    //         if (post.msgId===msg_id){
+    //             const upvotedComment=post.commentdata.map((c)=>{
+    //                 if(c.commentId===com_id){
+    //                     console.log(c)
+    //                     return{
+    //                         ...c,
+    //                         upvote:c.upvote+change,
+    //                     }
+    //                 }
+    //                 return c
+    //             })
+    //             return {
+    //                 ...post,
+    //                 commentdata:upvotedComment
+    //             }
+    //         }
+    //         return post
+    //     })
+    //     // setPosts((newPosts)=>{
+    //     //     return [...newPosts]
+    //     // })
+    //     setPosts(updatedPosts)
+    // }
+    function editCommentDom(msgId, comId, text){
+        const updatedPosts = posts.map((post)=>{
+            if(post.msgId===msgId){
+                const editedComment=post.commentdata.map((c)=>{
+                    if(c.commentId===comId){
+                        return{
+                            ...c,
+                            comment:text
+                        }
+                    }
+                    return c
+                })
+                return{
+                    ...post,
+                    commentdata:editedComment
+                }
+            }
+            return post
+        })
+        setPosts(updatedPosts)
+    }
+    function cancelEditCommentButton(com_id){
+        document.getElementById(`editComment-${com_id}`).style.display="none"
     }
 
     function editPostButton(msg_id){
@@ -147,10 +264,24 @@ function Posts(){
             if(fileUpload){
                 editFileInTable(msg_id)
             }
+            editDomButton(msg_id,document.getElementById(`editTitle-${msg_id}`).value,document.getElementById(`editMessage-${msg_id}`).value)
         }catch(error){
             console.error(error.message)
         }
         cancelEditPostButton(msg_id);
+    }
+    function editDomButton(msgId,sub,msg){
+        const updatedPost=posts.map((post)=>{
+            if(post.msgId===msgId){
+                return{
+                    ...post,
+                    subject:sub,
+                    message:msg,
+                }
+            }
+            return post
+        })
+        setPosts(updatedPost)
     }
     function cancelEditPostButton(msg_id){
         //console.log("hitting cancel edit post button");
@@ -174,11 +305,6 @@ function Posts(){
                 alert("File Post failed: "+fileData.mMessage)
                 return
             }
-            //adding file to bucket
-            //const { data, error } = await supabase.storage.from('bucket_name').upload('file_path', file)
-            //const {data} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
-            //console.log(data)
-
         }catch (error){
             console.error(error.message)
         }
@@ -191,6 +317,7 @@ function Posts(){
         //console.log("hitting add comment button:"+msg_id);
         try{
             const current_uuid = await getCurrentUserId()
+            const username = await getUsername(current_uuid)
             const commBody={
                 user_uuid:current_uuid,
                 comment:document.getElementById(`newComment-${msg_id}`).value
@@ -206,11 +333,33 @@ function Posts(){
                 alert("Comment failed: "+data.mMessage)
                 return
             }
-
+            console.log("data.mData: "+data.mData)
+            commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
         }catch(error){
             console.error(error.message)
         }
         cancelCommentButton(msg_id)
+    }
+    function commentDomButton(comment_text, msg_id,c_id,username,uuid){
+        const updatedPosts = posts.map((post)=>{
+            if (post.msgId===msg_id){
+                return {
+                    ...post,
+                    commentdata:[...post.commentdata, {
+                        comment:comment_text,
+                        commentId:c_id,
+                        username:username,
+                        upvote:0,
+                        uuid:uuid
+                    }]
+                }
+            }
+            return post
+        })
+        // setPosts((newPosts)=>{
+        //     return [...newPosts]
+        // })
+        setPosts(updatedPosts)
     }
     async function upvoteButton(msg_id){
         //console.log("hitting upvote button for "+msg_id)
@@ -229,18 +378,44 @@ function Posts(){
             if(data.mStatus!=="ok"){
                 return
             }
+            //console.log("data.mData: "+data.mData)
+            if(data.mData===0){
+                messageUpvoteDom(msg_id,-1)
+            }
+            else{
+                messageUpvoteDom(msg_id,1)
+            }
+
         }catch(error){
             console.error(error.message)
         }
     }
-    async function upvoteCommentButton(comment_id){
+    function messageUpvoteDom(msg_id,change){
+        //console.log("messageUpvoteDom msg_id: "+msg_id)
+        const newPosts = posts.map((post)=>{
+            if (post.msgId===msg_id){
+                return {
+                    ...post,
+                    upvote:post.upvote+change,
+                }
+            }
+            else{
+                return post
+            }
+        })
+        // setPosts((newPosts)=>{
+        //     return [...newPosts]
+        // })
+        setPosts(newPosts)
+    }
+    async function upvoteCommentButton(comment_id, msg_id){
         //console.log("hitting comment upvote button for "+comment_id)
         try{
             const current_uuid = await getCurrentUserId()
             const stuff ={
                 user_uuid:current_uuid,
             }
-            const res=await fetch(`http://localhost:8080/vote_comments/${comment_id}`,{
+            const res=await fetch(`http://localhost:8080/vote_comments/comment/${comment_id}/msg/${msg_id}`,{
                 method:"PUT",
                 headers:{"Content-Type":"application/json"},
                 body: JSON.stringify(stuff)
@@ -248,11 +423,45 @@ function Posts(){
             const data = await res.json()
             //console.log("Comment upvoted: ",data);
             if(data.mStatus!=="ok"){
+                alert("Upvoting comment failed. Try again later")
                 return
             }
+            console.log("comment data.mData: "+data.mData)
+            if(data.mData===0){
+                commentUpvoteDom(msg_id,comment_id,-1)
+            }
+            else{
+                commentUpvoteDom(msg_id,comment_id,1)
+            }
+
         }catch(error){
             console.error(error.message)
         }
+    }
+    function commentUpvoteDom(msg_id,com_id,change){
+        const updatedPosts = posts.map((post)=>{
+            if (post.msgId===msg_id){
+                const upvotedComment=post.commentdata.map((c)=>{
+                    if(c.commentId===com_id){
+                        console.log(c)
+                        return{
+                            ...c,
+                            upvote:c.upvote+change,
+                        }
+                    }
+                    return c
+                })
+                return {
+                    ...post,
+                    commentdata:upvotedComment
+                }
+            }
+            return post
+        })
+        // setPosts((newPosts)=>{
+        //     return [...newPosts]
+        // })
+        setPosts(updatedPosts)
     }
     function cancelCommentButton(msg_id){
         //console.log("hitting cancel comment button");
@@ -282,6 +491,104 @@ function Posts(){
             return
         }
     }
+    async function deleteCommentButton(msgId,commentId){
+        try{
+            const deleteCommentResponse = await fetch(`http://localhost:8080/delete/comment/${commentId}`,{
+                method:"DELETE",
+                headers:{"Content-Type": "application/json"},
+            })
+            const deleteCommentData = await deleteCommentResponse.json()
+            console.log(deleteCommentData.mData)
+            if(deleteCommentData.mStatus!=="ok"){
+                alert("Deleting comment failed. Try again later")
+                return
+            }
+            alert("Comment deleted")
+            deleteCommentDom(msgId,commentId)
+        }catch(error){
+            console.log(error.message)
+            return
+        }
+    }
+    function deleteCommentDom(msgId,commentId){
+    //const result = questionFilter.map(item => 
+    //     item.questions.filter(qitem => qitem.question.includes('Question 1'))
+    // )
+        setPosts(prevPosts =>
+            prevPosts.map(post => {
+                if (post.msgId === msgId) {
+                    return {
+                        ...post,
+                        commentdata: post.commentdata.filter(
+                            cItem => cItem.commentId !== commentId
+                        )
+                    }
+                }
+                return post;
+            })
+        )
+    }
+
+    async function deletePostButton(msgId, uuid){
+        console.log(msgId)
+        try{
+            const deleteBody={
+                userUuid:uuid,
+            }
+            const deleteMessageResponse = await fetch(`http://localhost:8080/delete/message/${msgId}`,{
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(deleteBody)
+            })
+            const deleteMessageData = await deleteMessageResponse.json()
+            //console.log(deleteMessageData.mData)
+            if (deleteMessageData.mStatus!=="ok"){
+                console.log(deleteMessageData.mMessage)
+                alert("Deleting post failed")
+                return
+            }
+            else if(deleteMessageData.mData!==null){
+                console.log("file to delete")
+                const { data, error } = await supabase
+                    .storage
+                    .from('community_feed_file_upload')
+                    .remove([deleteMessageData.mData])
+                if(data){
+                    console.log(data)
+                }
+                else if (error){
+                    console.log(error.message)
+                }
+            }
+            testDeleteDom(msgId)
+            alert("Post deleted")
+            return
+        }catch(error){
+            console.log(error.message)
+            return
+        }
+    }
+    function testDeleteDom(msg_id){
+        //updatedPosts.map(post=>(
+            // key=post.msgId
+            setPosts(
+                posts.filter(p=>
+                    p.msgId!==msg_id
+                )
+            )
+            // for (const image of imageUrls){
+            //     console.log("image: "+image+" msgId: "+image.msgId)
+            // }
+        // ))
+    }
+    function showCommentList(msgId){
+        if (document.getElementById(`commentList-${msgId}`).style.display==="block"){
+            document.getElementById(`commentList-${msgId}`).style.display="none"
+        }
+        else{
+            document.getElementById(`commentList-${msgId}`).style.display="block"
+        }
+    }
     
     const [posts, setPosts] = useState([])
 
@@ -303,6 +610,10 @@ function Posts(){
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[]);
 
+    useEffect(()=>{
+        // console.log("psots updated", posts)
+    },[posts])
+
     const [imageUrls, setImageUrls] = useState({});
 
     useEffect(() =>{
@@ -319,15 +630,15 @@ function Posts(){
                         );
                     //console.log("data from community_feed: ",data)
                     if (data && data.publicUrl) {
-                        console.log('Public URL:', data.publicUrl);
+                        //console.log('Public URL:', data.publicUrl);
                     } else {
                         console.error('Error getting public URL or URL is undefined');
                     }
                     
                     newUrls[post.msgId] = data.publicUrl;
 
-                }catch(err){
-                    console.error(err)
+                }catch(error){
+                    console.log(error.message)
                     newUrls[post.msgId]=null
                 }
             }
@@ -339,7 +650,6 @@ function Posts(){
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
-
     const [fileName, setFileName] = useState("No file chosen");
 
     function uploadImageHandler(e){
@@ -396,7 +706,7 @@ function Posts(){
             }
             const sortProperty=types[type]
             const sorted = [...posts].sort((a,b) => b[sortProperty]-a[sortProperty])
-            console.log(sorted)
+            //console.log(sorted)
             setData(sorted)
         }
         sortArray(sortType)
@@ -404,9 +714,7 @@ function Posts(){
 
     const[postUsernameQuery,setPostUsernameQuery] = useState("")
 
-    //{data.filter((post)=>post.username.toLowerCase().includes(postUsernameQuery))?.map((post, i) => (
-
-    console.log("usestate currentuserid: "+currentUserId)
+    // console.log("usestate currentuserid: "+currentUserId)
    
     return(
         <div style={{ display: 'flex', height: '100vh', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#E3C7E6', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
@@ -422,19 +730,28 @@ function Posts(){
                 
                 <Header username={currentUserName} />
 
-                {/* ↓ 改动1：overflow: 'hidden' 替换 overflowY: 'auto'，去掉 justifyContent: 'center'，gap改为20px */}
                 <div style={{ flex: 1, overflow: 'hidden', padding: '20px', display: 'flex', gap: '20px' }}>
 
-                    {/* ↓ 改动2：去掉 maxWidth: '800px'，改为 overflowY: 'auto' 让内容自己滚动 */}
-                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>  
-                        {/*#e0e0e0*/}           
-                        <Card style={{ padding: '15px', cursor: 'pointer', backgroundColor: '#dfb6f3da', border: '1px solid #d6b4ebb9', borderRadius: '10px' }} onClick={postButton}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>  
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#d9d9d9' }}></div>
-                                <span style={{ color: '#888', fontSize: '15px' }}>Start a new post...</span>
-                                <Button onClick = {postButton}>Post</Button>
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                        {/* Post composer */}
+                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt="avatar" style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: getAvatarColor(), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+                                    {getInitials()}
+                                </div>
+                            )}
+                            <div
+                                onClick={postButton}
+                                style={{ flex: 1, padding: '10px 16px', borderRadius: '24px', backgroundColor: '#f0f2f5', color: '#888', fontSize: '15px', cursor: 'pointer' }}
+                            >
+                                What's on your mind?
                             </div>
-                        </Card>
+                            <Button onClick={postButton}>Post</Button>
+                        
+                        </div>
 
                         <div id="addPost" style={{display:"none"}}>
                             <Card>
@@ -466,48 +783,74 @@ function Posts(){
                             </Card>
                         </div>
 
-                        <select onChange={(e) => setSortType(e.target.value)}>
-                            <option value="sortByNewest">Sort Posts By New</option>
-                            <option value="sortByUpvotes">Sort Posts By Upvotes</option>
-                        </select>
-                        <input type="text" placeholder="Search for Posts By Username..." className="search" onChange={(e) => setPostUsernameQuery(e.target.value)} />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <select onChange={(e) => setSortType(e.target.value)} style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0', backgroundColor: '#fff', fontSize: '14px' }}>
+                                <option value="sortByNewest">Sort Posts By New</option>
+                                <option value="sortByUpvotes">Sort Posts By Upvotes</option>
+                            </select>
+                            <input type="text" placeholder="Search by username..." onChange={(e) => setPostUsernameQuery(e.target.value)} style={{ flex: 2, padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0', fontSize: '14px' }} />
+                        </div>
 
-                        <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {data.filter((post)=>post.username.toLowerCase().includes(postUsernameQuery))?.map((post, i) => (
+                        <div id="messageList" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {data.filter((post)=>post.username?.toLowerCase().includes(postUsernameQuery))?.map((post) => (
                             
-                            <Card key={i}>
-                                <div style={{ color: '#888', fontSize: '12px' }}></div>
+                            <div key={post.msgId} style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+                                {/* Post header: avatar + username + timestamp */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#6C63FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+                                        {post.username?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: '700', fontSize: '15px', color: '#111' }}>{post.username}</div>
+                                        <div style={{ fontSize: '12px', color: '#aaa' }}>#{post.msgId}</div>
+                                    </div>
+                                    {currentUserId && post.uuid === currentUserId && (
+                                        <button onClick={() => editPostButton(post.msgId)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>Edit</button>
+                                    )}
+                                    {currentUserId && post.uuid === currentUserId && (
+                                        <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>
+                                            Delete <i className="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Post content */}
+                                <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>{post.subject}</div>
+                                <div style={{ fontSize: '15px', color: '#333', lineHeight: '1.5', marginBottom: '14px' }}>{post.message}</div>
 
                                 {imageUrls[post.msgId] && (
-                                    <img
-                                        src={imageUrls[post.msgId]}
-                                        alt="Post attachment"
-                                        width="200"
-                                        style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '10px' }}
-                                    />
+                                    <img src={imageUrls[post.msgId]} alt="Post attachment" style={{ maxWidth: '100%', borderRadius: '10px', marginBottom: '14px' }} />
                                 )}
-
-                                <h2 style={{ marginTop: '10px', marginBottom: '5px' }}>{post.subject}</h2>
-                                <label style={{ display: 'block', marginBottom: '10px' }}>{post.message}</label>
-                                <p style={{ fontSize: '14px', color: '#555' }}>By {post.username}</p>
                                 
                                 <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{post.upvote} Upvotes</p>
                                 
                                 {imageUrls[post.msgId]&& (
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                                         <Button variant="secondary" onClick={()=> downloadFile(post.msgId)}>
-                                            <i class="fa-solid fa-download"></i>
+                                            Download <i className="fa-solid fa-download"></i>
                                         </Button>
                                     </div>
                                 )}
                                 
                                 {/* button */}
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                                    {currentUserId && post.uuid === currentUserId && (
-                                        <Button variant="secondary" onClick={() => editPostButton(post.msgId)}>Edit</Button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
+                                    <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                        ⬆️ {post.upvote}
+                                    </button>
+                                    {/* {post.commentdata && post.commentdata.length > 0 && document.getElementById(`commentList-${post.msgId}`).style.display==="none" && (
+                                        <button onClick={() => showCommentList(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                            Show Comments
+                                        </button>
                                     )}
-                                    <Button variant="secondary" onClick={()=> upvoteButton(post.msgId)}>⬆️</Button>
-                                    <Button variant="secondary" onClick={() => commentButton(post.msgId)}>Comment</Button>
+                                    {post.commentdata && post.commentdata.length > 0 && document.getElementById(`commentList-${post.msgId}`).style.display==="block" && (
+                                        <button onClick={() => showCommentList(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                            Hide Comments
+                                        </button>
+                                    )} */}
+                                    <button onClick={() => commentButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                        💬 Comment
+                                    </button>
                                 </div>
 
                                 <div id={`editPost-${post.msgId}`} style={{display:"none", marginTop: '15px'}}>
@@ -515,11 +858,11 @@ function Posts(){
                                         <h3 style={{ marginTop: 0 }}>Edit Entry</h3>
                                         <label style={{ fontWeight: 'bold' }}>Title</label>
                                         
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                        {/* <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                                             <input type="file" id={`hiddenEditFileInput-${post.msgId}`} onChange={uploadImageHandler} style={{ display: 'none' }}></input>
                                             <Button variant="secondary" onClick={() => document.getElementById(`hiddenEditFileInput-${post.msgId}`).click()}>Upload File</Button>
                                             <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
-                                        </div>
+                                        </div> */}
 
                                         <img src={fileUpload} alt="" style={{ maxWidth: '100%', borderRadius: '8px' }}></img>
 
@@ -549,21 +892,53 @@ function Posts(){
                                     
                                 {/* comments */}
                                 {post.commentdata && post.commentdata.length > 0 && (
-                                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        {(post.commentdata)?.map((comment,j)=>(
-                                            <div key={j} style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-                                                <label style={{ display: 'block', marginBottom: '5px' }}>{comment.comment}</label>
-                                                <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>By {comment.username}</p>
-                                                
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
-                                                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>{comment.upvote} Upvotes</p>
-                                                    <Button variant="secondary" onClick={()=> upvoteCommentButton(comment.commentId)}>⬆️</Button>
+                                    <div id = {`commentList-${post.msgId}`} style={{display: "none"}}>
+                                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            {(post.commentdata)?.map((comment,j)=>(
+                                                <div key={j} style={{ backgroundColor: '#f7f7f7', padding: '12px 14px', borderRadius: '10px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#43B89C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff' }}>
+                                                            {comment.username?.[0]?.toUpperCase() || '?'}
+                                                        </div>
+                                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#333' }}>{comment.username}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '14px', color: '#333', marginBottom: '8px' }}>{comment.comment}</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#555', fontWeight: '600' }}>
+                                                            ⬆️ {comment.upvote}
+                                                        </button>
+                                                        {currentUserId && comment.uuid=== currentUserId && (
+                                                            <button onClick={()=>editCommentButton(comment.commentId)}>Edit</button>
+                                                        )}
+                                                        {currentUserId && comment.uuid === currentUserId && (
+                                                        <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>Delete</button>
+                                                        )}
+                                                        <div id={`editComment-${comment.commentId}`} style={{display:"none", marginTop: '15px'}}>
+                                                            <Card variant="dark">
+                                                                <h3 style={{ marginTop: 0 }}>Edit Comment</h3>
+                                                                <label style={{ fontWeight: 'bold' }}>Title</label>
+                                                                
+                                                                {/* <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                                                    <input type="file" id={`hiddenEditFileInput-${post.msgId}`} onChange={uploadImageHandler} style={{ display: 'none' }}></input>
+                                                                    <Button variant="secondary" onClick={() => document.getElementById(`hiddenEditFileInput-${post.msgId}`).click()}>Upload File</Button>
+                                                                    <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
+                                                                </div> */}
+
+                                                                <textarea id={`editCommentText-${comment.commentId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
+                                                                
+                                                                <div style={{ display: 'flex', gap: '10px' }}>
+                                                                    <Button onClick={() => sendEditCommentButton(post.msgId,comment.commentId)}>Send</Button>
+                                                                    <Button variant="secondary" onClick={() => cancelEditCommentButton(comment.commentId)}>Cancel</Button>
+                                                                </div>
+                                                            </Card>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
-                            </Card>
+                            </div>
                             ))}
                         </div>
                     </div>

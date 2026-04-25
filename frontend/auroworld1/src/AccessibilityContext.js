@@ -1,18 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-
 const AccessibilityContext = createContext();
-
 export function AccessibilityProvider({ children }) {
   const [contrast, setContrast] = useState('good');
-  const [textSize, setTextSize] = useState(2);
+  const [textSize, setTextSize] = useState(3);
   const [boldText, setBoldText] = useState(false);
-
-  const textSizeMap = { 1: '12px', 2: '14px', 3: '16px', 4: '18px', 5: '20px' };
-
+  const textSizeMap = { 1: 0.8, 2: 0.9, 3: 1, 4: 1.15, 5: 1.3 };
   useEffect(() => {
-    document.documentElement.style.fontSize = textSizeMap[textSize];
+    document.body.style.zoom = textSizeMap[textSize];
   }, [textSize]);
-
   useEffect(() => {
     let styleEl = document.getElementById('bold-text-style');
     if (!styleEl) {
@@ -24,7 +19,6 @@ export function AccessibilityProvider({ children }) {
       ? '* { font-weight: 700 !important; }'
       : '* { font-weight: unset; }';
   }, [boldText]);
-
   useEffect(() => {
     let styleEl = document.getElementById('contrast-style');
     if (!styleEl) {
@@ -47,14 +41,12 @@ export function AccessibilityProvider({ children }) {
       styleEl.textContent = '';
     }
   }, [contrast]);
-
   return (
     <AccessibilityContext.Provider value={{ contrast, setContrast, textSize, setTextSize, boldText, setBoldText }}>
       {children}
     </AccessibilityContext.Provider>
   );
 }
-
 export function useAccessibility() {
   return useContext(AccessibilityContext);
 }

@@ -108,6 +108,7 @@ function CourseCard({ course, enrolled, onEnroll, onUnenroll, enrolling, onClick
 
 function Courses() {
     const navigate = useNavigate();
+    const [userRole,setUserRole] = useState(null)
     const [currentUserName, setCurrentUserName] = useState('Loading...');
     const [currentUserId, setCurrentUserId]  = useState(null);
     const [tab, setTab]  = useState('enrolled');
@@ -122,8 +123,8 @@ function Courses() {
             fetch("http://localhost:8080/all/instructors")
             .then(res => res.json())
             .then(data => {
-                console.log("FULL RESPONSE:", data)
-                console.log("Instructor list mData:", data.mData)
+                //console.log("FULL RESPONSE:", data)
+                //console.log("Instructor list mData:", data.mData)
                 setInstructorList(data.mData);
             })
             .catch(err => console.error("FETCH ERROR for getting instructors:", err))
@@ -150,6 +151,37 @@ function Courses() {
         }
         fetchUser();
     }, []);
+
+    useEffect(()=>{
+        async function getUserRole(){
+            try{
+                const { data: { user } } = await supabase.auth.getUser();
+                if(!user){
+                    console.log("problem grabbing user ofr getUserAtts")
+                }
+                const uuidString = user.id
+                const res= await fetch(`${API}/userdata/${uuidString}`)
+                const data = await res.json()
+                //console.log("getUserAtts mData: "+data.mData.role)
+                setUserRole(data.mData.role)
+                // setUserAttributes(
+                //     user={
+                //         username:data.mData.username,
+                //         firstname:data.mData.firstname,
+                //         lastname:data.mData.lastname,
+                //         email:data.mData.email,
+                //         role:data.mData.role,
+                //         note:data.mData.note,
+                //         unique_id:data.mData.unique_id
+                //     }
+                // )
+            }catch(error){
+                console.log(error.message)
+            }
+            return
+        }   
+        getUserRole()
+    },[])
 
     const loadCourses = useCallback(async () => {
         try {
@@ -248,6 +280,7 @@ function Courses() {
             return
         }
     }
+    //console.log("userAttributes: "+userAttributes)
 
     const enrolledCourses = allCourses.filter(c => enrolledIds.has(c.courseId));
     const displayList = tab === 'enrolled' ? enrolledCourses : allCourses;
@@ -267,8 +300,10 @@ function Courses() {
                         <div style={{ display: 'flex', alignItems: 'center',
                                       justifyContent: 'space-between', marginBottom: '24px' }}>
                             <h1 style={{ margin: 0, fontSize: '26px', fontWeight: '800', color: '#111' }}>Courses</h1>
-
-                            <button onClick = {courseButton}>Create Course</button>
+                            { userRole==="admin" && (
+                                <button onClick = {courseButton}>Create Course</button>
+                            )}
+                            {/* <button onClick = {courseButton}>Create Course</button> */}
                             <div id="addCourse" style={{display: 'none'}}>
                                 <h3 style={{ marginTop: 0 }}>Add a New Course</h3>
 

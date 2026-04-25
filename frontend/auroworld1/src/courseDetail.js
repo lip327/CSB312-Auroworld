@@ -130,9 +130,30 @@ async function cancelEditCourseTab(){
 // ── Course tab ───────────────────────────────────────────────────────────────
 
 function CourseTab({ course }) {
+    const[userAttributes,setUserAttributes]=useState(null)
+    useEffect(()=>{
+        async function getUserAtts(){
+            try{
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { return; }
+                const uuidString = user.id
+                const res= await fetch(`${API}/userdata/${uuidString}`)
+                const data = await res.json()
+                //console.log("getUserAtts mData: "+data.mData.role)
+                setUserAttributes(data.mData)
+            }catch(error){
+                console.log(error.message)
+            }
+            return
+        }
+        getUserAtts()
+    },[])
+
     return (
         <div style={{ maxWidth: '640px' }}>
-            <button onClick={()=>editCourseTab()}>Edit</button>
+            { (userAttributes?.role==="admin" || userAttributes?.username===course.instructor) && (
+                <button onClick={()=>editCourseTab()}>Edit</button>
+            )}
             <h2 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800' }}>{course.title}</h2>
             <p style={{ margin: '0 0 4px', fontSize: '14px', color: '#666' }}>Instructor: {course.instructor}</p>
             {course.startDate && (
@@ -243,7 +264,7 @@ async function uploadNewMaterials(filename,unitId,courseId,filedata){
 
 // ── Materials tab — units are collapsible, each has multiple videos ──────────
 
-function UnitSection({unit, courseId, unitId} ) {
+function UnitSection({unit, courseId, role, username, instructor, unitId} ) {
     const [open,setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null); // video id
 
@@ -259,6 +280,24 @@ function UnitSection({unit, courseId, unitId} ) {
             setFileName("No file chosen"); 
         }
     }
+    // const[userAttributes,setUserAttributes]=useState(null)
+    // useEffect(()=>{
+    //     async function getUserAtts(){
+    //         try{
+    //             const { data: { user } } = await supabase.auth.getUser();
+    //             if (!user) { return; }
+    //             const uuidString = user.id
+    //             const res= await fetch(`${API}/userdata/${uuidString}`)
+    //             const data = await res.json()
+    //             //console.log("getUserAtts mData: "+data.mData.role)
+    //             setUserAttributes(data.mData)
+    //         }catch(error){
+    //             console.log(error.message)
+    //         }
+    //         return
+    //     }
+    //     getUserAtts()
+    // },[])
 
     const [videoUrl,setVideoUrl]=useState([])
 
@@ -267,7 +306,7 @@ function UnitSection({unit, courseId, unitId} ) {
             if (!unit.videos) return
             const videoUrlsSet={}
             for (const video of unit.videos){
-                console.log(video)
+                //console.log(video)
                 // const videoUrlString=video.driveUrl
                 // console.log(videoUrlString)
                 if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/`)){
@@ -338,7 +377,9 @@ function UnitSection({unit, courseId, unitId} ) {
                       backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             {/* Unit header / toggle */}
             <div>
-                <button onClick={addMaterials}>Add video</button>
+                {(role==="admin" || username===instructor ) && (
+                    <button onClick={addMaterials}>Add video</button>
+                )}
                 <div id ="addVideo" style={{display: 'none'}}>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -433,9 +474,11 @@ function UnitSection({unit, courseId, unitId} ) {
                                     </div>
                                     <div className = "video-container" style={{ flex: 1 }}>
                                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>{video.title}</div>
-                                        <button className = "delete-video" onClick={()=>deleteVideo(video.driveUrl,unitId,video.videoId)}>
-                                            <i className="fa-solid fa-trash-can"></i>
-                                        </button>
+                                        { (role==="admin" || username===instructor) && (
+                                            <button className = "delete-video" onClick={()=>deleteVideo(video.driveUrl,unitId,video.videoId)}>
+                                                <i className="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        )}
                                         {video.duration && (
                                             <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{video.duration}</div>
                                         )}
@@ -484,15 +527,15 @@ function UnitSection({unit, courseId, unitId} ) {
 }
 
 async function newUnitButton(){
-    console.log("hitting new unit button");
+    //console.log("hitting new unit button");
     document.getElementById("addUnit").style.display="block"
 }
 async function cancelNewUnit(){
-    console.log("cancelling new unit")
+    //console.log("cancelling new unit")
     document.getElementById("addUnit").style.display="none"
 }
 async function submitNewUnit(courseId){
-    console.log("submitting new unit")
+    //console.log("submitting new unit")
     try{
         if(!document.getElementById("unitName").value){
             alert("Please enter a unit name")
@@ -507,12 +550,12 @@ async function submitNewUnit(courseId){
             body: JSON.stringify(unitBody)
         })
         const data = await response.json();
-        console.log("New Unit response:",data)
+        //console.log("New Unit response:",data)
         if(data.mStatus!=="ok"){
             alert("Adding unitfailed: "+data.mMessage);
             return;
         }
-        console.log("new unit Id= "+data.mData)
+        //console.log("new unit Id= "+data.mData)
         return
 
     }catch(error){
@@ -522,18 +565,42 @@ async function submitNewUnit(courseId){
 }
 
 function MaterialsTab({ course }) {
+    const[userAttributes,setUserAttributes]=useState(null)
+    useEffect(()=>{
+        async function getUserAtts(){
+            try{
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { return; }
+                const uuidString = user.id
+                const res= await fetch(`${API}/userdata/${uuidString}`)
+                const data = await res.json()
+                //console.log("getUserAtts mData: "+data.mData.role)
+                setUserAttributes(data.mData)
+            }catch(error){
+                console.log(error.message)
+            }
+            return
+        }
+        getUserAtts()
+    },[])
+    // useEffect(() => {
+    //     //console.log(userAttributes);
+    // }, [userAttributes]);
+    //console.log("userAttributes: "+userAttributes?.role)
     if (!course.units || course.units.length === 0) {
         return (
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 No materials available yet.
                 <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
-                    <button onClick = {newUnitButton}>Add a New Unit</button>
+                    { (userAttributes?.role==="admin" || userAttributes?.username===course.instructor) && (
+                        <button onClick = {newUnitButton}>Add a New Unit</button>
+                    )}
                     <div id="addUnit" style={{display: 'none'}}>
                             <label style={{ marginTop: 0 }}>Unit name</label>
                             <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
 
                             <div style={{ display: 'flex', gap: '10px' }}>
-                            <button>Create</button>
+                        
                             <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
                             <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
                         </div>
@@ -545,7 +612,9 @@ function MaterialsTab({ course }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
-                <button onClick = {newUnitButton}>Add a New Unit</button>
+                { (userAttributes?.role==="admin" || userAttributes?.username===course.instructor) && (
+                    <button onClick = {newUnitButton}>Add a New Unit</button>
+                )}
                 <div id="addUnit" style={{display: 'none'}}>
                         <label style={{ marginTop: 0 }}>Unit name</label>
                         <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
@@ -557,7 +626,7 @@ function MaterialsTab({ course }) {
                 </div>
             </div>
             {course.units.map(unit => (
-                <UnitSection key={unit.unitId} unit={unit} courseId={course.courseId} unitId={unit.unitId}/>
+                <UnitSection key={unit.unitId} unit={unit} courseId={course.courseId} role={userAttributes?.role} username={userAttributes?.username} instructor={course.instructor} unitId={unit.unitId}/>
             ))}
         </div>
     );

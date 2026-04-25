@@ -106,6 +106,12 @@ public class App
     private static final class CreateVoteRequest{
         public String user_uuid;
     }
+    private static final class CommentVoteRequest{
+        public String user_uuid;
+    }
+    private static final class DeleteMessageRequest{
+        public String userUuid;
+    }
     //body class for creating a new post/message
     private static final class CreateMessageRequest {
         public String user_uuid;
@@ -122,6 +128,9 @@ public class App
     private static final class CreateUpdateRequest{
         public String subject;
         public String message;
+    }
+    private static final class ChangeCommentRequest{
+        public String comment;
     }
 
     private static final class CreateCourseRequest{
@@ -424,6 +433,36 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
+        app.delete("delete/message/{msg_id}",ctx ->{
+            SessionData session = requireSession(ctx);
+
+            ctx.contentType("application/json");
+
+            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
+
+            DeleteMessageRequest dmr = gson.fromJson(ctx.body(), DeleteMessageRequest.class);
+
+            if (dmr==null || dmr.userUuid ==null){
+                ctx.status(400);
+                ctx.result(gson.toJson(new StructuredResponse("error","missing message attribute",null)));
+                return;
+            }
+            String filepath = db.getMessageFilepath(msgId);
+            System.out.println(filepath);
+
+            int result = db.deleteMessageAndComments(msgId);
+            System.out.println(result);
+
+            if(result==-1){
+                ctx.status(500);
+                ctx.result(gson.toJson(new StructuredResponse("error", "failed to delete message", null)));
+            }
+            else{
+                ctx.result(gson.toJson(new StructuredResponse("ok","deleted message and files and commetns",filepath)));
+            }
+            return;
+        });
+
         app.post("/messages", ctx -> {
             SessionData session = requireSession(ctx);
             // // if (session == null) return;   // requireSession already sends error JSON
@@ -499,6 +538,7 @@ public class App
             ctx.contentType("application/json");
 
             int msg_id=Integer.parseInt(ctx.pathParam("msg_id"));
+
             System.out.println(msg_id);
 
             String filename=db.grabFilename(msg_id);
@@ -575,11 +615,11 @@ public class App
                 return;
             }
 
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("commentId", newId);
+            // Map<String, Object> payload = new HashMap<>();
+            // payload.put("commentId", newId);
 
             ctx.status(201);
-            ctx.result(gson.toJson(new StructuredResponse("ok", null, payload)));
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, newId)));
         });
 
         app.put("/vote_messages/{msg_id}", ctx->{
@@ -603,16 +643,16 @@ public class App
 
             StructuredResponse resp = (result == -1)
                     ? new StructuredResponse("error", "vote failed", null)
-                    : new StructuredResponse("ok", "vote=" + result, null);
+                    : new StructuredResponse("ok", "vote succeeded", result);
             
             ctx.result(gson.toJson(resp));
         });
 
-        app.put("/vote_comments/{comment_id}", ctx->{
+        app.put("/vote_comments/comment/{comment_id}/msg/{msg_id}", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
 
-            CreateVoteRequest cvr = gson.fromJson(ctx.body(),CreateVoteRequest.class);
+            CommentVoteRequest cvr = gson.fromJson(ctx.body(),CommentVoteRequest.class);
 
             if (cvr==null || cvr.user_uuid ==null){
                 ctx.status(400);
@@ -624,12 +664,13 @@ public class App
             }
 
             int comment_id= Integer.parseInt(ctx.pathParam("comment_id"));
+            int msgId = Integer.parseInt(ctx.pathParam("msg_id"));
             
-            int result = db.voteCommentTable(comment_id, cvr.user_uuid, 1);
+            int result = db.voteCommentTable(comment_id, cvr.user_uuid, 1, msgId);
 
             StructuredResponse resp = (result == -1)
                     ? new StructuredResponse("error", "comment vote failed", null)
-                    : new StructuredResponse("ok", "comment vote=" + result, null);
+                    : new StructuredResponse("ok", "comment vote successful", result);
             
             ctx.result(gson.toJson(resp));
         });
@@ -686,6 +727,43 @@ public class App
             StructuredResponse resp = (result == -1 || result == 0)
                     ? new StructuredResponse("error", "post update failed", null)
                     : new StructuredResponse("ok", null, "updated");
+
+            ctx.result(gson.toJson(resp));
+        });
+
+        app.put("put/comment/{comid}", ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int comId=Integer.parseInt(ctx.pathParam("comid"));
+
+            ChangeCommentRequest ccr = gson.fromJson(ctx.body(),ChangeCommentRequest.class);
+
+            if(ccr==null || ccr.comment==null){
+                ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing comment", null)));
+                return;
+            }
+            int result = db.updateComment(comId,ccr.comment);
+
+            StructuredResponse resp = (result == -1 || result == 0)
+                    ? new StructuredResponse("error", "comment update failed", null)
+                    : new StructuredResponse("ok", null, "updated");
+
+            ctx.result(gson.toJson(resp));
+        });
+
+        app.delete("delete/comment/{comid}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            int comId=Integer.parseInt(ctx.pathParam("comid"));
+
+            int result = db.deleteComment(comId);
+
+            StructuredResponse resp = (result == -1 || result == 0)
+                    ? new StructuredResponse("error", "comment delete failed", null)
+                    : new StructuredResponse("ok", "commetn deleted", null);
 
             ctx.result(gson.toJson(resp));
         });
@@ -783,6 +861,21 @@ public class App
         int id = db.changeUserRole(crr.username, crr.role,crr.unique_id);
 
         StructuredResponse resp = new StructuredResponse("ok",null,null);
+        ctx.result(gson.toJson(resp));
+    });
+
+    app.get("/userdata/{uuid}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        String uuid = ctx.pathParam("uuid");
+        System.out.println(uuid);
+
+        Database.UserData user = db.getUserAttributes(uuid);
+
+        System.out.println("user: "+user);
+
+        StructuredResponse resp = new StructuredResponse("ok",null,user);
         ctx.result(gson.toJson(resp));
     });
 

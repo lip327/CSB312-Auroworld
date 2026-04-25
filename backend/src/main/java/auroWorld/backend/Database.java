@@ -377,6 +377,81 @@ public class Database{
             return -1;
         }
     }
+// String sql=
+//             "SELECT m.msg_id, m.subject, m.message, " +
+//             "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+//             "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+//             "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+//             "FROM messages m " +
+//             "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+//             "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+//             "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+//             "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+//             "ORDER BY m.msg_id DESC";
+// public String grabUsernameFromUuid(String uuid){
+//         String sql =
+//             "SELECT username FROM users WHERE unique_id = ?";
+//         try (Connection conn = getConnection();
+//             PreparedStatement ps = conn.prepareStatement(sql)) {
+//             ps.setString(1, uuid);
+//             try (ResultSet rs = ps.executeQuery()) {
+//                 if (rs.next()) {
+//                     return rs.getString("username");
+//                 }
+//             }
+//         } catch (SQLException e) {
+//             e.printStackTrace();
+//             return null;
+//         }
+//         return null;
+//     }
+    public String getMessageFilepath(int msgId){
+        String sqlFilepath = "SELECT filepath FROM files WHERE msg_id = ? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(sqlFilepath)){
+            ps.setInt(1,msgId);
+            try(ResultSet rs = ps.executeQuery()){
+                if(rs.next()){
+                    return rs.getString("filepath");
+                }
+                return null;
+            }
+        } catch(SQLException e){
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public int deleteMessageAndComments(int msgId){
+        String deleteCommentVote="DELETE FROM vote_comments WHERE msg_id = ?";
+        String deleteMessageVote = "DELETE FROM vote_messages WHERE msg_id = ?";
+        String deleteComment = "DELETE FROM comments WHERE msg_id = ?";
+        String deleteFile ="DELETE FROM files WHERE msg_id = ?";
+        String deleteMessage= "DELETE FROM messages WHERE msg_id = ?";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps1 = conn.prepareStatement(deleteCommentVote);
+        PreparedStatement ps2 = conn.prepareStatement(deleteMessageVote);
+        PreparedStatement ps3 = conn.prepareStatement(deleteComment);
+        PreparedStatement ps4 = conn.prepareStatement(deleteFile);
+        PreparedStatement ps5 = conn.prepareStatement(deleteMessage)){
+            ps1.setInt(1, msgId);
+            ps2.setInt(1, msgId);
+            ps3.setInt(1, msgId);
+            ps4.setInt(1, msgId);
+            ps5.setInt(1, msgId);
+            ps1.executeUpdate();
+            ps2.executeUpdate();
+            ps3.executeUpdate();
+            ps4.executeUpdate();
+            ps5.executeUpdate();
+            return 1;
+        } 
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
 
     // insert a new message, return msg_id 
     public int insertMessage(String userId, String subject, String message) {
@@ -664,6 +739,39 @@ public class Database{
             return null;
         }
     }
+    public int deleteComment(int comId){
+        String deleteCommentSql="DELETE FROM comments WHERE comment_id = ? ";
+        String deleteVoteCommentSql="DELETE FROM vote_comments WHERE comment_id =? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps1 = conn.prepareStatement(deleteVoteCommentSql);
+        PreparedStatement ps2= conn.prepareStatement(deleteCommentSql)){
+            ps1.setInt(1,comId);
+            ps2.setInt(1,comId);
+            ps1.executeUpdate();
+            ps2.executeUpdate();
+            return 1;
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+    
+    public int updateComment(int comId, String comment){
+        String sql ="UPDATE comments SET comment = ? WHERE comment_id = ? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1,comment);
+            ps.setInt(2,comId);
+            int res=ps.executeUpdate();
+            if (res>0) {
+                return res;
+            }
+            return -1;
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
 
     public int updatePost(int msgId, String title, String message){
         String sql =
@@ -816,7 +924,7 @@ public class Database{
 
     }
 
-    public int voteCommentTable(int comment_id,String unique_id, int upvote){
+    public int voteCommentTable(int comment_id,String unique_id, int upvote, int msgId){
         Integer oldVote=null;
         int newVote=-1;
         int change=0;
@@ -828,7 +936,7 @@ public class Database{
         // String updateSql = "UPDATE votes SET vote=? WHERE \"userID\"=? AND message_id=?";
         String selectUpvoteSql="SELECT upvote FROM vote_comments WHERE comment_id=? AND \"unique_id\"=?";
         String deleteUpvoteSql="DELETE upvote FROM vote_comments WHERE comment_id=? AND \"unique_id\"=?";
-        String insertUpvoteSql = "INSERT INTO vote_comments (comment_id, \"unique_id\", upvote) VALUES (?, ?, ?)";
+        String insertUpvoteSql = "INSERT INTO vote_comments (comment_id, \"unique_id\", upvote, msg_id) VALUES (?, ?, ?, ?)";
         String updateUpvoteSql = "UPDATE vote_comments SET upvote=? WHERE comment_id=? AND \"unique_id\"=?";
 
         try(Connection conn = getConnection()){
@@ -849,6 +957,7 @@ public class Database{
                     ins.setInt(1,comment_id);
                     ins.setString(2,unique_id);
                     ins.setInt(3,newVote);
+                    ins.setInt(4,msgId);
                     ins.executeUpdate();
                 }
                 System.out.println("Successfully inserted upvote (comments)");
@@ -859,9 +968,9 @@ public class Database{
                 text="Updating upvote takeback";
 
                 try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
-                    upd.setInt(1,comment_id);
+                    upd.setInt(1,newVote);
                     System.out.println(upd);
-                    upd.setInt(2,newVote);
+                    upd.setInt(2,comment_id);
                     System.out.println(upd);
                     upd.setString(3,unique_id);
                     System.out.println(upd);
@@ -874,9 +983,9 @@ public class Database{
                 text="Updating upvote regive (comments)";
                 newVote=1;
                 try(PreparedStatement upd = conn.prepareStatement(updateUpvoteSql)){
-                    upd.setInt(1,comment_id);
+                    upd.setInt(1,newVote);
                     System.out.println(upd);
-                    upd.setInt(2,newVote);
+                    upd.setInt(2,comment_id);
                     System.out.println(upd);
                     upd.setString(3,unique_id);
                     System.out.println(upd);
@@ -1032,43 +1141,6 @@ public class Database{
     /* -------------------------------------------------------------
      *                       COURSE METHODS
      * ------------------------------------------------------------- */
-    // public CourseData(int courseId, String title, String description,
-    //                       String instructor, String times, String startDate,
-    //                       String level, String price, String thumbnail,
-    //                       String liveUrl, boolean inSession, List<UnitData> units) {
-    //         this.courseId   = courseId;
-    //         this.title      = title;
-    //         this.description = description;
-    //         this.instructor = instructor;
-    //         this.times      = times;
-    //         this.startDate  = startDate;
-    //         this.level      = level;
-    //         this.price      = price;
-    //         this.thumbnail  = thumbnail;
-    //         this.liveUrl    = liveUrl;
-    //         this.inSession  = inSession;
-    //         this.units      = units;
-    //     }
-    // String sql =
-    //         "INSERT INTO comments (msg_id, comment, valid, unique_id) " +
-    //         "VALUES (?, ?, true, ?) RETURNING comment_id";
-    // try (Connection conn = getConnection();
-    //         PreparedStatement ps = conn.prepareStatement(sql)) {
-
-    //         ps.setInt(1, msgId);
-    //         ps.setString(2, comment);
-    //         ps.setString(3, userId);
-
-    //         try (ResultSet rs = ps.executeQuery()) {
-    //             System.out.println(rs);
-    //             if (rs.next()) return rs.getInt("comment_id");
-    //             return -1;
-    //         }
-
-    //     } catch (SQLException e) {
-    //         e.printStackTrace();
-    //         return -1;
-    //     }
 
     public int editCourseInfo(int courseId, String title, String description, String instructor, 
     String start_date, String level, String price){
@@ -1193,6 +1265,30 @@ public class Database{
         catch(SQLException e){
             e.printStackTrace();
             return -1;
+        }
+    }
+    public UserData getUserAttributes(String uuid){
+        String grabUser = "SELECT username, firstname, lastname, email, role, note FROM users WHERE unique_id=?";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(grabUser)){
+            ps.setString(1,uuid);
+            try(ResultSet rs = ps.executeQuery()){
+                if(rs.next()){
+                    return new UserData(
+                        rs.getString("username"),
+                        rs.getString("firstname"),
+                        rs.getString("lastname"),
+                        rs.getString("email"),
+                        rs.getString("role"),
+                        rs.getString("note"),
+                        uuid
+                    );
+                }
+                return null;
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+            return null;
         }
     }
     public int changeUserRole(String username, String role, String uuid){
