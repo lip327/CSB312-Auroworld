@@ -6,9 +6,6 @@ import java.util.*;
 
 public class Database{
 
-    /* -------------------------------------------------------------
-     *                       DATA CLASSES
-     * ------------------------------------------------------------- */
 
     public static final class CommentData {
         public final int commentId;
@@ -113,8 +110,6 @@ public class Database{
         }
     }
 
-    // ── Course data classes ──────────────────────────────────────
-
     public static final class VideoData {
         public final int    videoId;
         public final int    unitId;
@@ -149,6 +144,9 @@ public class Database{
             this.sortOrder = sortOrder;
             this.videos    = videos;
         }
+        public List<VideoData> getVideos(){
+            return this.videos;
+        }
     }
 
     public static final class CourseData {
@@ -182,6 +180,9 @@ public class Database{
             this.inSession = inSession;
             this.units   = units;
         }
+        public List<UnitData> getUnits(){
+            return this.units;
+        }
     }
 
     public static final class UserData{
@@ -202,6 +203,13 @@ public class Database{
             this.role=role;
             this.note=note;
             this.unique_id=unique_id;
+        }
+    }
+
+    public static final class LikedMessage{
+        public final int msgId;
+        public LikedMessage(int msgId){
+            this.msgId=msgId;
         }
     }
 
@@ -815,10 +823,43 @@ public class Database{
             return -1;
         }
     }
+    public ArrayList<Integer> getLikedComments(String uuid){
+        ArrayList<Integer> likedComments = new ArrayList<>();
+        String select ="SELECT comment_id FROM vote_comments WHERE unique_id = ? AND upvote = 1 ";
+        try(Connection conn = getConnection()){
+            PreparedStatement ps = conn.prepareStatement(select);
+            ps.setString(1, uuid);
+            try (ResultSet rs = ps.executeQuery()){
+                while (rs.next()){
+                    likedComments.add(rs.getInt("comment_id"));
+                }    
+            }    
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        return likedComments;
+    }
+
+    public ArrayList<Integer> getLikedPosts(String uuid){
+        ArrayList<Integer> likedPosts = new ArrayList<>();
+        String select ="SELECT msg_id FROM vote_messages WHERE unique_id = ? AND upvote = 1 ";
+        try(Connection conn = getConnection()){
+            PreparedStatement ps = conn.prepareStatement(select);
+            ps.setString(1, uuid);
+            try (ResultSet rs = ps.executeQuery()){
+                while (rs.next()){
+                    likedPosts.add(rs.getInt("msg_id"));
+                }    
+            }    
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        return likedPosts;
+    }
 
     public int voteMessageTable(int msgId,String user_uuid, int upvote){
         Integer oldVote=null;
-        int newVote=-1;
+        int newVote=-1; 
         int change=0;
         String text="";
 
@@ -1073,17 +1114,7 @@ public class Database{
             "WHERE c.msg_id=? ORDER BY c.comment_id DESC";
 
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-// "SELECT m.msg_id, m.subject, m.message, " +
-    //         "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
-    //         "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
-    //         "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
-    //         "FROM messages m " +
-    //         "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
-    //         "LEFT JOIN files f ON m.msg_id = f.msg_id " +
-    //         "LEFT JOIN users u ON m.unique_id = u.unique_id " +
-    //         "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
-    //         "ORDER BY m.msg_id DESC";
+            PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, msgId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -1409,76 +1440,295 @@ public class Database{
     }
 
     /** Build a CourseData from a ResultSet row (connection still open) */
-    private CourseData courseFromRow(Connection conn, ResultSet rs) throws SQLException {
-        int courseId = rs.getInt("course_id");
-        return new CourseData(
-            courseId,
-            rs.getString("title"),
-            rs.getString("description"),
-            rs.getString("instructor"),
-            rs.getString("times"),
-            rs.getString("start_date"),
-            rs.getString("level"),
-            rs.getString("price"),
-            rs.getString("thumbnail"),
-            rs.getString("live_url"),
-            rs.getBoolean("in_session"),
-            selectUnitsForCourse(conn, courseId)
-        );
-    }
+    // private CourseData courseFromRow(Connection conn, ResultSet rs) throws SQLException {
+    //     int courseId = rs.getInt("course_id");
+    //     return new CourseData(
+    //         courseId,
+    //         rs.getString("title"),
+    //         rs.getString("description"),
+    //         rs.getString("instructor"),
+    //         rs.getString("times"),
+    //         rs.getString("start_date"),
+    //         rs.getString("level"),
+    //         rs.getString("price"),
+    //         rs.getString("thumbnail"),
+    //         rs.getString("live_url"),
+    //         rs.getBoolean("in_session"),
+    //         selectUnitsForCourse(conn, courseId)
+    //     );
+    // }
+    // "SELECT m.msg_id, m.subject, m.message, " +
+    //         "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
+    //         "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
+    //         "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
+    //         "FROM messages m " +
+    //         "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
+    //         "LEFT JOIN files f ON m.msg_id = f.msg_id " +
+    //         "LEFT JOIN users u ON m.unique_id = u.unique_id " +
+    //         "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
+    //         "ORDER BY m.msg_id DESC";
 
     /** GET /courses — all courses */
     public List<CourseData> selectAllCourses() {
-        List<CourseData> res = new ArrayList<>();
-        String sql = "SELECT * FROM courses ORDER BY course_id";
+        // List<CourseData> res = new ArrayList<>();
+        Map<Integer, CourseData> courseMap = new LinkedHashMap<>();
+        Map<Integer, UnitData> unitMap = new HashMap<>();
+
+        String sql = "SELECT " +
+            "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
+            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
+            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "FROM courses c " +
+            "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
+            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "ORDER BY c.course_id, cu.sort_order, uv.sort_order";
+
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                res.add(courseFromRow(conn, rs));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return res;
-    }
-
-    /** GET /courses/{id} — single course with full unit/video tree */
-    public CourseData selectCourse(int courseId) {
-        String sql = "SELECT * FROM courses WHERE course_id = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, courseId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return null;
-                return courseFromRow(conn, rs);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    /** GET /courses/enrolled/{uuid} — courses the user is enrolled in */
-    public List<CourseData> selectEnrolledCourses(String uuid) {
-        List<CourseData> res = new ArrayList<>();
-        String sql =
-            "SELECT c.* FROM courses c " +
-            "JOIN enrollments e ON c.course_id = e.course_id " +
-            "WHERE e.unique_id = ? ORDER BY e.enrolled_at";
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, uuid);
-            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    res.add(courseFromRow(conn, rs));
+                    int courseId = rs.getInt("c_id");
+
+                    CourseData course = courseMap.get(courseId);
+
+                    if (course == null) {
+                        course = new CourseData(
+                            courseId,
+                            rs.getString("c_title"),
+                            rs.getString("description"),
+                            rs.getString("instructor"),
+                            rs.getString("times"),
+                            rs.getString("start_date"),
+                            rs.getString("level"),
+                            rs.getString("price"),
+                            rs.getString("thumbnail"),
+                            rs.getString("live_url"),
+                            rs.getBoolean("in_session"),
+                            new ArrayList<>()
+                        );
+                        courseMap.put(courseId, course);
+                    }
+                    //int unitId = rs.getInt("u_id");
+                    Integer unitId = (Integer) rs.getObject("u_id");
+                    if (unitId != null) {
+
+                        UnitData unit = unitMap.get(unitId);
+
+                        if (unit == null) {
+                            unit = new UnitData(
+                                unitId,
+                                courseId,
+                                rs.getString("u_title"),
+                                rs.getInt("u_sort"),
+                                new ArrayList<>()
+                            );
+
+                            unitMap.put(unitId, unit);
+                            course.getUnits().add(unit);
+                        }
+
+                        //int videoId = rs.getInt("v_id");
+                        Integer videoId = (Integer) rs.getObject("v_id");
+                        if (videoId != null) {
+                            unit.getVideos().add(
+                                new VideoData(
+                                    videoId,
+                                    unitId,
+                                    rs.getString("v_title"),
+                                    rs.getString("drive_url"),
+                                    rs.getString("duration"),
+                                    rs.getInt("v_sort")
+                                )
+                            );
+                        }
+                    }
+                }
+
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>(courseMap.values());
+    }
+    public CourseData selectCourse(int courseId) {
+        CourseData course = null;
+        Map<Integer, UnitData> unitMap = new HashMap<>();
+
+        String sql =
+            "SELECT " +
+            "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
+            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
+            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "FROM courses c " +
+            "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
+            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "WHERE c.course_id = ? " +
+            "ORDER BY cu.sort_order, uv.sort_order";
+
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, courseId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+                    if (course == null) {
+                        course = new CourseData(
+                            courseId,
+                            rs.getString("c_title"),
+                            rs.getString("description"),
+                            rs.getString("instructor"),
+                            rs.getString("times"),
+                            rs.getString("start_date"),
+                            rs.getString("level"),
+                            rs.getString("price"),
+                            rs.getString("thumbnail"),
+                            rs.getString("live_url"),
+                            rs.getBoolean("in_session"),
+                            new ArrayList<>()
+                        );
+                    }
+
+                    Integer unitId = (Integer) rs.getObject("u_id");
+
+                    if (unitId != null) {
+
+                        UnitData unit = unitMap.get(unitId);
+
+                        if (unit == null) {
+                            unit = new UnitData(
+                                unitId,
+                                courseId,
+                                rs.getString("u_title"),
+                                rs.getInt("u_sort"),
+                                new ArrayList<>()
+                            );
+
+                            unitMap.put(unitId, unit);
+                            course.getUnits().add(unit);
+                        }
+                        Integer videoId = (Integer) rs.getObject("v_id");
+
+                        if (videoId != null) {
+                            unit.getVideos().add(
+                                new VideoData(
+                                    videoId,
+                                    unitId,
+                                    rs.getString("v_title"),
+                                    rs.getString("drive_url"),
+                                    rs.getString("duration"),
+                                    rs.getInt("v_sort")
+                                )
+                            );
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return res;
+
+        return course;
     }
+
+
+    /** GET /courses/enrolled/{uuid} — courses the user is enrolled in */
+    public List<CourseData> selectEnrolledCourses(String uuid) {
+        List<CourseData> courses = new ArrayList<>();
+
+        Map<Integer, CourseData> courseMap = new LinkedHashMap<>();
+        Map<Integer, UnitData> unitMap = new HashMap<>();
+
+        String sql =
+            "SELECT " +
+            "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
+            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
+            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "FROM courses c " +
+            "JOIN enrollments e ON c.course_id = e.course_id " +
+            "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
+            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "WHERE e.unique_id = ? " +
+            "ORDER BY e.enrolled_at, cu.sort_order, uv.sort_order";
+
+        try (Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, uuid);
+            try (ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+
+                    int courseId = rs.getInt("c_id");
+                    CourseData course = courseMap.get(courseId);
+                    if (course == null) {
+
+                        course = new CourseData(
+                            courseId,
+                            rs.getString("c_title"),
+                            rs.getString("description"),
+                            rs.getString("instructor"),
+                            rs.getString("times"),
+                            rs.getString("start_date"),
+                            rs.getString("level"),
+                            rs.getString("price"),
+                            rs.getString("thumbnail"),
+                            rs.getString("live_url"),
+                            rs.getBoolean("in_session"),
+                            new ArrayList<>()
+                        );
+
+                        courseMap.put(courseId, course);
+                        courses.add(course);
+
+                        unitMap.clear();
+                    }
+
+                    Integer unitId = (Integer) rs.getObject("u_id");
+
+                    if (unitId != null) {
+
+                        UnitData unit = unitMap.get(unitId);
+                        if (unit == null) {
+
+                            unit = new UnitData(
+                                unitId,
+                                courseId,
+                                rs.getString("u_title"),
+                                rs.getInt("u_sort"),
+                                new ArrayList<>()
+                            );
+                            unitMap.put(unitId, unit);
+                            course.getUnits().add(unit);
+                        }
+                        Integer videoId = (Integer) rs.getObject("v_id");
+                        if (videoId != null) {
+
+                            unit.getVideos().add(
+                                new VideoData(
+                                    videoId,
+                                    unitId,
+                                    rs.getString("v_title"),
+                                    rs.getString("drive_url"),
+                                    rs.getString("duration"),
+                                    rs.getInt("v_sort")
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return courses;
+    }
+
 
     /**
      * POST /courses/{id}/enroll — enroll a user.

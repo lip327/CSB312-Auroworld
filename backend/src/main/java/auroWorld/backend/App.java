@@ -622,6 +622,28 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, newId)));
         });
 
+        app.get("/likedcomments/{uuid}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            String uuid = ctx.pathParam("uuid");
+
+            ArrayList<Integer> likedComments = db.getLikedComments(uuid);
+
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,likedComments)));
+        });
+
+        app.get("/likedmessages/{uuid}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            String uuid = ctx.pathParam("uuid");
+
+            ArrayList<Integer> likedPosts = db.getLikedPosts(uuid);
+
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,likedPosts)));
+        });
+
         app.put("/vote_messages/{msg_id}", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");

@@ -8,6 +8,7 @@ auroworld\backend\App$SessionManager.class
 auroworld\backend\Database$CourseData.class
 auroworld\backend\App$ChangeCommentRequest.class
 auroworld\backend\App$ChangeCourseRequest.class
+auroworld\backend\Database$LikedMessage.class
 auroworld\backend\App$DeleteMessageRequest.class
 auroworld\backend\App$CreateCourseRequest.class
 auroworld\backend\App$CreateUpdateRequest.class
