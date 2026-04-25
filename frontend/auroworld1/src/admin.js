@@ -113,6 +113,9 @@ function Admin(){
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const[role,setRole] = useState(null)
+    
+
     const [users, setUsers] = useState([])
 
     useEffect(() => {

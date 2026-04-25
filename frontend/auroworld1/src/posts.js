@@ -130,6 +130,7 @@ function Posts(){
         //console.log("hitting cancel post button");
         document.getElementById("addPost").style.display="none";
     }
+
     async function addFileToTable(msg_id){
         try{
             //console.log("addFileToTable msgId: "+msg_id)
@@ -188,31 +189,6 @@ function Posts(){
         }
         return
     }
-    // function commentUpvoteDom(msg_id,com_id,change){
-    //     const updatedPosts = posts.map((post)=>{
-    //         if (post.msgId===msg_id){
-    //             const upvotedComment=post.commentdata.map((c)=>{
-    //                 if(c.commentId===com_id){
-    //                     console.log(c)
-    //                     return{
-    //                         ...c,
-    //                         upvote:c.upvote+change,
-    //                     }
-    //                 }
-    //                 return c
-    //             })
-    //             return {
-    //                 ...post,
-    //                 commentdata:upvotedComment
-    //             }
-    //         }
-    //         return post
-    //     })
-    //     // setPosts((newPosts)=>{
-    //     //     return [...newPosts]
-    //     // })
-    //     setPosts(updatedPosts)
-    // }
     function editCommentDom(msgId, comId, text){
         const updatedPosts = posts.map((post)=>{
             if(post.msgId===msgId){
@@ -311,7 +287,22 @@ function Posts(){
     }
     function commentButton(msg_id){
         //console.log("hitting comment button");
-        document.getElementById(`addComment-${msg_id}`).style.display="block";
+        const p = posts.find((item) => item.msgId === msg_id);
+        
+        //console.log("p: "+p.msgId)
+        if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="none"){
+            document.getElementById(`commentList-${msg_id}`).style.display="block"
+        }
+        else if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="block"){
+            document.getElementById(`commentList-${msg_id}`).style.display="none"
+        }
+        if( document.getElementById(`addComment-${msg_id}`).style.display==="none"){
+            document.getElementById(`addComment-${msg_id}`).style.display="block";
+        }
+        else if( document.getElementById(`addComment-${msg_id}`).style.display==="block"){
+            document.getElementById(`addComment-${msg_id}`).style.display="none";
+        }
+        return
     }
     async function addCommentButton(msg_id){
         //console.log("hitting add comment button:"+msg_id);
@@ -333,12 +324,12 @@ function Posts(){
                 alert("Comment failed: "+data.mMessage)
                 return
             }
-            console.log("data.mData: "+data.mData)
+            //console.log("data.mData: "+data.mData)
             commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
         }catch(error){
             console.error(error.message)
         }
-        cancelCommentButton(msg_id)
+        // cancelCommentButton(msg_id)
     }
     function commentDomButton(comment_text, msg_id,c_id,username,uuid){
         const updatedPosts = posts.map((post)=>{
@@ -407,6 +398,23 @@ function Posts(){
         //     return [...newPosts]
         // })
         setPosts(newPosts)
+
+        // const p = likedPosts.find((item) => item.msgId === msg_id);
+        const num = likedPosts.find((item) => item===msg_id);
+        if(num===msg_id){
+            console.log("messageUpvoteDom num: "+num)
+            setLikedPosts(
+                likedPosts.filter(p=>
+                    p!==msg_id
+                )
+            )
+            return
+        }
+        else{
+            setLikedPosts((prevPosts)=>{
+                return [...prevPosts,msg_id]
+            })
+        }
     }
     async function upvoteCommentButton(comment_id, msg_id){
         //console.log("hitting comment upvote button for "+comment_id)
@@ -443,7 +451,7 @@ function Posts(){
             if (post.msgId===msg_id){
                 const upvotedComment=post.commentdata.map((c)=>{
                     if(c.commentId===com_id){
-                        console.log(c)
+                        //console.log(c)
                         return{
                             ...c,
                             upvote:c.upvote+change,
@@ -462,8 +470,24 @@ function Posts(){
         //     return [...newPosts]
         // })
         setPosts(updatedPosts)
+        const num = likedComments.find((item) => item===com_id);
+        if(num===com_id){
+            console.log("commentUpvoteDom num: "+num)
+            setLikedComments(
+                likedComments.filter(com=>
+                    com!==com_id
+                )
+            )
+            return
+        }
+        else{
+            setLikedComments((prevComments)=>{
+                return [...prevComments,com_id]
+            })
+        }
     }
     function cancelCommentButton(msg_id){
+        document.getElementById(`commentList-${msg_id}`).style.display="none"
         //console.log("hitting cancel comment button");
         document.getElementById(`addComment-${msg_id}`).style.display="none";
     }
@@ -569,26 +593,46 @@ function Posts(){
         }
     }
     function testDeleteDom(msg_id){
-        //updatedPosts.map(post=>(
-            // key=post.msgId
-            setPosts(
-                posts.filter(p=>
-                    p.msgId!==msg_id
-                )
+        setPosts(
+            posts.filter(p=>
+                p.msgId!==msg_id
             )
-            // for (const image of imageUrls){
-            //     console.log("image: "+image+" msgId: "+image.msgId)
-            // }
-        // ))
+        )
     }
-    function showCommentList(msgId){
-        if (document.getElementById(`commentList-${msgId}`).style.display==="block"){
-            document.getElementById(`commentList-${msgId}`).style.display="none"
+    const [likedPosts,setLikedPosts]=useState([])
+    useEffect(()=>{
+        async function getLikedPosts(){
+            const userId = await getCurrentUserId()
+            fetch(`http://localhost:8080/likedmessages/${userId}`)
+            .then(res=>res.json())
+            .then(data=>{
+                console.log("likedPosts data: "+data.mData)
+                setLikedPosts(data.mData)
+            })
+            .catch(err=>console.error("fetch error for liked posts: ",err))
         }
-        else{
-            document.getElementById(`commentList-${msgId}`).style.display="block"
+        getLikedPosts()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[])
+
+    const [likedComments,setLikedComments]=useState([])
+    useEffect(()=>{
+        async function getLikedComments(){
+            const userId = await getCurrentUserId()
+            fetch(`http://localhost:8080/likedcomments/${userId}`)
+            .then(res=>res.json())
+            .then(data=>{
+                console.log("likedPosts data: "+data.mData)
+                setLikedComments(data.mData)
+            })
+            .catch(err=>console.error("fetch error for liked posts: ",err))
         }
-    }
+        getLikedComments()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[])
+    useEffect(() => {
+        console.log("likedComments:", likedComments);
+    }, [likedComments]);
     
     const [posts, setPosts] = useState([])
 
@@ -714,6 +758,12 @@ function Posts(){
 
     const[postUsernameQuery,setPostUsernameQuery] = useState("")
 
+    // for(const post of posts){
+    //     if(post.commentdata.length!==0){
+    //         console.log("post"+post.msgId+": "+post.commentdata)
+    //     }
+    // }
+
     // console.log("usestate currentuserid: "+currentUserId)
    
     return(
@@ -806,24 +856,26 @@ function Posts(){
                                         <div style={{ fontSize: '12px', color: '#aaa' }}>#{post.msgId}</div>
                                     </div>
                                     {currentUserId && post.uuid === currentUserId && (
-                                        <button onClick={() => editPostButton(post.msgId)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>Edit</button>
+                                        <button onClick={() => editPostButton(post.msgId)} style={{ float:"right",marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '20px', cursor: 'pointer', color: '#555' }}>
+                                            Edit <i className="fas fa-edit"></i>
+                                        </button>
                                     )}
                                     {currentUserId && post.uuid === currentUserId && (
-                                        <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>
+                                        <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{float:"right", background: 'none', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '20px', cursor: 'pointer', color: '#555' }}>
                                             Delete <i className="fa-solid fa-trash-can"></i>
                                         </button>
                                     )}
                                 </div>
 
                                 {/* Post content */}
-                                <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>{post.subject}</div>
-                                <div style={{ fontSize: '15px', color: '#333', lineHeight: '1.5', marginBottom: '14px' }}>{post.message}</div>
+                                <div style={{ fontSize: '25px', fontWeight: '700', marginBottom: '8px', color: '#111' }}>{post.subject}</div>
+                                <div style={{ fontSize: '20px', color: '#333', lineHeight: '1.5', marginBottom: '14px' }}>{post.message}</div>
 
                                 {imageUrls[post.msgId] && (
                                     <img src={imageUrls[post.msgId]} alt="Post attachment" style={{ maxWidth: '100%', borderRadius: '10px', marginBottom: '14px' }} />
                                 )}
                                 
-                                <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{post.upvote} Upvotes</p>
+                                <p style={{ fontSize: '20px', fontWeight: 'bold' }}>{post.upvote} Upvotes</p>
                                 
                                 {imageUrls[post.msgId]&& (
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
@@ -835,20 +887,20 @@ function Posts(){
                                 
                                 {/* button */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
-                                    <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
-                                        ⬆️ {post.upvote}
-                                    </button>
-                                    {/* {post.commentdata && post.commentdata.length > 0 && document.getElementById(`commentList-${post.msgId}`).style.display==="none" && (
-                                        <button onClick={() => showCommentList(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
-                                            Show Comments
+                                    {likedPosts.find((item) => item===post.msgId) && (
+                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '40px', color: '#555', fontWeight: '600' }}>
+                                            <i className="fa-solid fa-thumbs-up" style={{color:" rgb(177, 151, 252)"}}></i>
                                         </button>
                                     )}
-                                    {post.commentdata && post.commentdata.length > 0 && document.getElementById(`commentList-${post.msgId}`).style.display==="block" && (
-                                        <button onClick={() => showCommentList(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
-                                            Hide Comments
+                                    {!(likedPosts.find((item) => item===post.msgId)) && (
+                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '40px', color: '#555', fontWeight: '600' }}>
+                                           <i className="fa-regular fa-thumbs-up"></i>
                                         </button>
-                                    )} */}
-                                    <button onClick={() => commentButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#555', fontWeight: '600' }}>
+                                    )}
+                                    {/* <button onClick={() => upvoteButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#555', fontWeight: '600' }}>
+                                        ⬆️ {post.upvote}
+                                    </button> */}
+                                    <button onClick={() => commentButton(post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '35px', color: '#555', fontWeight: '600' }}>
                                         💬 Comment
                                     </button>
                                 </div>
@@ -892,31 +944,46 @@ function Posts(){
                                     
                                 {/* comments */}
                                 {post.commentdata && post.commentdata.length > 0 && (
-                                    <div id = {`commentList-${post.msgId}`} style={{display: "none"}}>
+                                    <div id = {`commentList-${post.msgId}`} style={{display:"none"}} >
                                         <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                            {(post.commentdata)?.map((comment,j)=>(
-                                                <div key={j} style={{ backgroundColor: '#f7f7f7', padding: '12px 14px', borderRadius: '10px' }}>
+                                            {/* {(post.commentdata)?.reverse().map((comment)=>( */}
+                                            {[...post.commentdata]?.reverse().map((comment)=>(
+                                                <div key={comment.commentId} style={{ backgroundColor: '#f7f7f7', padding: '12px 14px', borderRadius: '10px' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                                                         <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#43B89C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff' }}>
                                                             {comment.username?.[0]?.toUpperCase() || '?'}
                                                         </div>
-                                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#333' }}>{comment.username}</span>
+                                                        <span style={{ fontSize: '20px', fontWeight: '700', color: '#333' }}>{comment.username}</span>
                                                     </div>
-                                                    <div style={{ fontSize: '14px', color: '#333', marginBottom: '8px' }}>{comment.comment}</div>
+                                                    <div style={{ fontSize: '25px', color: '#333', marginBottom: '8px' }}>{comment.comment}</div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#555', fontWeight: '600' }}>
+                                                        {likedComments.find((item) => item===comment.commentId) && (
+                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '30px', color: '#555', fontWeight: '600' }}>
+                                                                <i className="fa-solid fa-thumbs-up" style={{color:" rgb(177, 151, 252)"}}></i>
+                                                            </button>
+                                                        )}
+                                                        {!(likedComments.find((item) => item===comment.commentId)) && (
+                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '30px', color: '#555', fontWeight: '600' }}>
+                                                                <i className="fa-regular fa-thumbs-up"></i>
+                                                            </button>
+                                                        )}
+                                                        {/* <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#555', fontWeight: '600' }}>
                                                             ⬆️ {comment.upvote}
-                                                        </button>
+                                                        </button> */}
                                                         {currentUserId && comment.uuid=== currentUserId && (
-                                                            <button onClick={()=>editCommentButton(comment.commentId)}>Edit</button>
+                                                            <button onClick={()=>editCommentButton(comment.commentId)}>
+                                                                Edit <i className="fas fa-edit"></i>
+                                                            </button>
                                                         )}
                                                         {currentUserId && comment.uuid === currentUserId && (
-                                                        <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>Delete</button>
+                                                            <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>
+                                                                Delete <i className="fa-solid fa-trash-can"></i>
+                                                            </button>
                                                         )}
                                                         <div id={`editComment-${comment.commentId}`} style={{display:"none", marginTop: '15px'}}>
                                                             <Card variant="dark">
                                                                 <h3 style={{ marginTop: 0 }}>Edit Comment</h3>
-                                                                <label style={{ fontWeight: 'bold' }}>Title</label>
+                                                                <label style={{ fontWeight: 'bold' }}>Message</label>
                                                                 
                                                                 {/* <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                                                                     <input type="file" id={`hiddenEditFileInput-${post.msgId}`} onChange={uploadImageHandler} style={{ display: 'none' }}></input>
