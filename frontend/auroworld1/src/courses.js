@@ -9,183 +9,40 @@ const supabase = createClient(
     process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
 );
 
-const API =
-    window.location.hostname === "localhost"
-        ? "http://localhost:8080"
-        : "https://auroworld.onrender.com";
+const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 
-function CourseCard({ course, enrolled, onEnroll, onUnenroll, enrolling, onClick }) {
-    const [hovered, setHovered] = useState(false);
+const PURPLE = '#6C63FF';
+const PURPLE_LIGHT = '#EDE9FF';
 
-    function handleEnrollClick(e) {
-        e.stopPropagation();
-        if (enrolled) onUnenroll(course.courseId);
-        else onEnroll(course.courseId);
-    }
-
-    return (
-        <div
-            onClick={enrolled ? onClick : undefined}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            style={{
-                display: 'flex', alignItems: 'center', gap: '20px',
-                backgroundColor: hovered && enrolled ? '#fafafa' : '#ffffff',
-                border: hovered && enrolled ? '1.5px solid #3b3b3b' : '1px solid #e5e5e5',
-                borderRadius: '14px', padding: '20px',
-                cursor: enrolled ? 'pointer' : 'default',
-                transition: 'all 0.18s ease',
-                boxShadow: hovered && enrolled
-                    ? '0 4px 16px rgba(0,0,0,0.08)'
-                    : '0 2px 8px rgba(0,0,0,0.04)',
-            }}
-        >
-            {/* Thumbnail */}
-            <div style={{
-                width: '90px', height: '68px', borderRadius: '10px', flexShrink: 0,
-                backgroundColor: '#e8e8e8', overflow: 'hidden',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-                {course.thumbnail
-                    ? <img src={course.thumbnail} alt={course.title}
-                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: '28px' }}>📚</span>
-                }
-            </div>
-
-            {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '16px', fontWeight: '700', color: '#111' }}>
-                        {course.title}
-                    </span>
-                    <span style={{
-                        fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '999px',
-                        backgroundColor: course.inSession ? '#d4f5e9' : '#f0f0f0',
-                        color: course.inSession ? '#1a7a50' : '#888', flexShrink: 0,
-                    }}>
-                        {course.inSession ? '● In Session' : '○ Not in Session'}
-                    </span>
-                </div>
-                <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#555', lineHeight: 1.4 }}>
-                    {course.description}
-                </p>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#888', flexWrap: 'wrap' }}>
-                    <span>👤 {course.instructor}</span>
-                    <span>🕐 {course.times}</span>
-                    {course.level && <span>📊 {course.level}</span>}
-                    {course.price && <span>💰 {course.price}</span>}
-                </div>
-            </div>
-
-            {/* Enroll button */}
-            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                <button
-                    onClick={handleEnrollClick}
-                    disabled={enrolling}
-                    style={{
-                        padding: '8px 18px', borderRadius: '999px',
-                        border: enrolled ? '1.5px solid #c0392b' : '1.5px solid #3b3b3b',
-                        backgroundColor: enrolled ? 'transparent' : '#3b3b3b',
-                        color: enrolled ? '#c0392b' : '#fff',
-                        fontWeight: '600', fontSize: '13px',
-                        cursor: enrolling ? 'not-allowed' : 'pointer',
-                        opacity: enrolling ? 0.6 : 1,
-                        transition: 'all 0.15s', whiteSpace: 'nowrap',
-                    }}
-                >
-                    {enrolling ? '...' : enrolled ? 'Unenroll' : 'Enroll'}
-                </button>
-                {enrolled && (
-                    <span style={{ fontSize: '11px', color: '#3b3b3b', fontWeight: '600' }}>
-                        ✓ Enrolled — click card to open
-                    </span>
-                )}
-            </div>
-        </div>
-    );
-}
 
 function Courses() {
     const navigate = useNavigate();
-    const [userRole,setUserRole] = useState(null)
-    const [currentUserName, setCurrentUserName] = useState('Loading...');
-    const [currentUserId, setCurrentUserId]  = useState(null);
-    const [tab, setTab]  = useState('enrolled');
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [tab, setTab] = useState('all');
     const [allCourses, setAllCourses] = useState([]);
-    const [enrolledIds,  setEnrolledIds] = useState(new Set());
-    const [enrolling, setEnrolling]  = useState({});
+    const [enrolledIds, setEnrolledIds] = useState(new Set());
+    const [enrolling, setEnrolling] = useState({});
+    const [search, setSearch] = useState('');
+    const [filters, setFilters] = useState({ level: [], time: [] });
+    const [showAddCourse, setShowAddCourse] = useState(false);
 
-    const[instructorList, setInstructorList]=useState([])
-
-    useEffect(()=>{
-        async function getInstructors(){
-            fetch("http://localhost:8080/all/instructors")
-            .then(res => res.json())
-            .then(data => {
-                //console.log("FULL RESPONSE:", data)
-                //console.log("Instructor list mData:", data.mData)
-                setInstructorList(data.mData);
-            })
-            .catch(err => console.error("FETCH ERROR for getting instructors:", err))
-        }
-        getInstructors()
-
-    },[])
+    const [newCourse, setNewCourse] = useState({
+        title: '', description: '', instructor: '', times: '',
+        start_date: '', level: 'Beginner', price: 'Free', live_url: ''
+    });
 
     useEffect(() => {
         async function fetchUser() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { setCurrentUserName('Guest'); return; }
+            if (!user) return;
             setCurrentUserId(user.id);
-            try {
-                const { data } = await supabase
-                    .from('users').select('firstname, lastname')
-                    .eq('email', user.email).single();
-                setCurrentUserName(data
-                    ? `${data.firstname} ${data.lastname}`
-                    : user.email?.split('@')[0] || 'User');
-            } catch {
-                setCurrentUserName(user.email?.split('@')[0] || 'User');
-            }
         }
         fetchUser();
     }, []);
 
-    useEffect(()=>{
-        async function getUserRole(){
-            try{
-                const { data: { user } } = await supabase.auth.getUser();
-                if(!user){
-                    console.log("problem grabbing user ofr getUserAtts")
-                }
-                const uuidString = user.id
-                const res= await fetch(`${API}/userdata/${uuidString}`)
-                const data = await res.json()
-                //console.log("getUserAtts mData: "+data.mData.role)
-                setUserRole(data.mData.role)
-                // setUserAttributes(
-                //     user={
-                //         username:data.mData.username,
-                //         firstname:data.mData.firstname,
-                //         lastname:data.mData.lastname,
-                //         email:data.mData.email,
-                //         role:data.mData.role,
-                //         note:data.mData.note,
-                //         unique_id:data.mData.unique_id
-                //     }
-                // )
-            }catch(error){
-                console.log(error.message)
-            }
-            return
-        }   
-        getUserRole()
-    },[])
-
     const loadCourses = useCallback(async () => {
         try {
-            const res  = await fetch(`${API}/courses`);
+            const res = await fetch(`${API}/courses`);
             const data = await res.json();
             setAllCourses(data.mData || []);
         } catch (e) { console.error('loadCourses:', e); }
@@ -194,7 +51,7 @@ function Courses() {
     const loadEnrolled = useCallback(async (uuid) => {
         if (!uuid) return;
         try {
-            const res  = await fetch(`${API}/courses/enrolled/${uuid}`);
+            const res = await fetch(`${API}/courses/enrolled/${uuid}`);
             const data = await res.json();
             setEnrolledIds(new Set((data.mData || []).map(c => c.courseId)));
         } catch (e) { console.error('loadEnrolled:', e); }
@@ -207,7 +64,7 @@ function Courses() {
         if (!currentUserId) { alert('Please log in to enroll.'); return; }
         setEnrolling(prev => ({ ...prev, [courseId]: true }));
         try {
-            const res  = await fetch(`${API}/courses/${courseId}/enroll`, {
+            const res = await fetch(`${API}/courses/${courseId}/enroll`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_uuid: currentUserId }),
             });
@@ -222,7 +79,7 @@ function Courses() {
         if (!window.confirm('Unenroll from this course?')) return;
         setEnrolling(prev => ({ ...prev, [courseId]: true }));
         try {
-            const res  = await fetch(`${API}/courses/${courseId}/enroll`, {
+            const res = await fetch(`${API}/courses/${courseId}/enroll`, {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_uuid: currentUserId }),
             });
@@ -234,158 +91,239 @@ function Courses() {
         finally { setEnrolling(prev => ({ ...prev, [courseId]: false })); }
     }
 
-    async function courseButton(){
-        console.log("hitting coures button");
-        document.getElementById("addCourse").style.display="block";
-    }
-    async function cancelNewCourse(){
-        console.log("cancel new course")
-        document.getElementById("addCourse").style.display="none"
-    }
-    async function submitNewCourse(){
-        console.log("submitting new course")
-        try{
-            if(!document.getElementById("title").value || !document.getElementById("description").value
-            || !document.getElementById("instructor").value || !document.getElementById("times").value
-            || !document.getElementById("start_date").value || !document.getElementById("level").value
-            || !document.getElementById("price").value || !document.getElementById("live_url").value){
-                alert("Please fill out all info")
-                return
-            }
-            const courseBody={
-                title:document.getElementById("title").value,
-                description:document.getElementById("description").value,
-                instructor:document.getElementById("instructor").value,
-                times:document.getElementById("times").value,
-                startDate:document.getElementById("start_date").value,
-                level:document.getElementById("level").value,
-                price:document.getElementById("price").value,
-                live_url:document.getElementById("live_url").value
-            }
-            const response=await fetch("http://localhost:8080/courses",{
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(courseBody)
-            })
-            const data = await response.json();
-            console.log("New Course response:",data)
-            if(data.mStatus!=="ok"){
-                alert("Adding course failed: "+data.mMessage);
-                return;
-            }
-            console.log("new course Id= "+data.mData)
-            return
-        }catch(error){
-            console.log(error.message)
-            return
+    async function submitNewCourse() {
+        const { title, description, instructor, times, start_date, level, price, live_url } = newCourse;
+        if (!title || !description || !instructor || !times || !start_date || !level || !price || !live_url) {
+            alert('Please fill out all fields'); return;
         }
+        try {
+            const response = await fetch(`${API}/courses`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description, instructor, times, startDate: start_date, level, price, live_url })
+            });
+            const data = await response.json();
+            if (data.mStatus !== 'ok') { alert('Adding course failed: ' + data.mMessage); return; }
+            setShowAddCourse(false);
+            setNewCourse({ title: '', description: '', instructor: '', times: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '' });
+            loadCourses();
+        } catch (error) { console.log(error.message); }
     }
-    //console.log("userAttributes: "+userAttributes)
+
+    function toggleFilter(type, value) {
+        setFilters(prev => {
+            const arr = prev[type];
+            return { ...prev, [type]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value] };
+        });
+    }
+
+    const levelOptions = ['Beginner', 'Intermediate', 'Advanced'];
+    const timeOptions = ['Morning', 'Afternoon', 'Evening', 'Asynchronous'];
 
     const enrolledCourses = allCourses.filter(c => enrolledIds.has(c.courseId));
-    const displayList = tab === 'enrolled' ? enrolledCourses : allCourses;
+    const displayList = (tab === 'enrolled' ? enrolledCourses : allCourses)
+        .filter(c => c.title?.toLowerCase().includes(search.toLowerCase()) || c.instructor?.toLowerCase().includes(search.toLowerCase()))
+        .filter(c => filters.level.length === 0 || filters.level.includes(c.level))
 
     return (
-        <div style={{
-            display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden',
-            backgroundColor: '#E3C7E6',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}>
+        <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
             <Sidebar />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <Header username={currentUserName} />
-                <div style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
-                    <div style={{ maxWidth: '820px', margin: '0 auto' }}>
+                <Header />
+                <div style={{ flex: 1, overflowY: 'auto', padding: '30px', display: 'flex', gap: '24px' }}>
 
-                        <div style={{ display: 'flex', alignItems: 'center',
-                                      justifyContent: 'space-between', marginBottom: '24px' }}>
-                            <h1 style={{ margin: 0, fontSize: '26px', fontWeight: '800', color: '#111' }}>Courses</h1>
-                            { userRole==="admin" && (
-                                <button onClick = {courseButton}>Create Course</button>
-                            )}
-                            {/* <button onClick = {courseButton}>Create Course</button> */}
-                            <div id="addCourse" style={{display: 'none'}}>
-                                <h3 style={{ marginTop: 0 }}>Add a New Course</h3>
+                    {/* Main content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
 
-                                <label style={{ marginTop: 0 }}>*Course Title</label>
-                                <input type="text" id="title" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                        {/* Header row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                            <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: '#111' }}>Courses</h1>
+                            <button
+                                onClick={() => setShowAddCourse(v => !v)}
+                                style={{ padding: '9px 20px', borderRadius: '8px', border: '1.5px solid #ccc', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                            >
+                                {showAddCourse ? 'Cancel' : 'Create Course'}
+                            </button>
+                        </div>
 
-                                <label style={{ marginTop: 0 }}>*Course Description</label>
-                                <textarea id="description" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
-
-                                <label style={{ marginTop: 0 }}>*Instructor</label>
-                                {/* <input type="text" id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} /> */}
-                                <select id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
-                                    {instructorList.map(instructor => (
-                                        <option key={instructor.unique_id} value={instructor.username}>{instructor.username}</option>
-                                    ))}
-                                </select>
-
-                                <label style={{ marginTop: 0 }}>*Times</label>
-                                <input type="text" id="times" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-
-                                <label style={{ marginTop: 0 }}>*Start Date</label>
-                                <input type="text" id="start_date" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-
-                                <label style={{ marginTop: 0 }}>*Level</label>
-                                <select defaultValue="Beginner" id="level" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
-                                    <option>Beginner</option>
-                                    <option>Intermediate</option>
-                                    <option>Advanced</option>
-                                </select>
-
-                                <label style={{ marginTop: 0 }}>*Price</label>
-                                <select defaultValue="Free" id="price" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
-                                    <option>Free</option>
-                                    <option>Priced</option>
-                                </select>
-
-                                <label style={{ marginTop: 0 }}>*Link to Meeting</label>
-                                <input type="text" id="live_url" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-
+                        {/* Add Course Form */}
+                        {showAddCourse && (
+                            <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '24px', marginBottom: '20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+                                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add a New Course</h3>
+                                {[
+                                    { label: 'Course Title', key: 'title', type: 'text' },
+                                    { label: 'Instructor', key: 'instructor', type: 'text' },
+                                    { label: 'Times', key: 'times', type: 'text' },
+                                    { label: 'Start Date', key: 'start_date', type: 'text' },
+                                    { label: 'Link to Meeting', key: 'live_url', type: 'text' },
+                                ].map(f => (
+                                    <div key={f.key} style={{ marginBottom: '12px' }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{f.label}</label>
+                                        <input type={f.type} value={newCourse[f.key]} onChange={e => setNewCourse(p => ({ ...p, [f.key]: e.target.value }))}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
+                                    </div>
+                                ))}
+                                <div style={{ marginBottom: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Description</label>
+                                    <textarea value={newCourse.description} onChange={e => setNewCourse(p => ({ ...p, description: e.target.value }))}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', minHeight: '80px', boxSizing: 'border-box', resize: 'vertical' }} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Level</label>
+                                        <select value={newCourse.level} onChange={e => setNewCourse(p => ({ ...p, level: e.target.value }))}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px' }}>
+                                            <option>Beginner</option><option>Intermediate</option><option>Advanced</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Price</label>
+                                        <select value={newCourse.price} onChange={e => setNewCourse(p => ({ ...p, price: e.target.value }))}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px' }}>
+                                            <option>Free</option><option>Priced</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={submitNewCourse}>Send</button>
-                                    <button variant="secondary" onClick={cancelNewCourse}>Cancel</button>
+                                    <button onClick={submitNewCourse} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>Create</button>
+                                    <button onClick={() => setShowAddCourse(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                                 </div>
                             </div>
+                        )}
 
-                            <div style={{ display: 'flex', backgroundColor: '#e0e0e0',
-                                          borderRadius: '999px', padding: '4px', gap: '2px' }}>
-                                {['enrolled', 'all'].map(t => (
-                                    <button key={t} onClick={() => setTab(t)} style={{
-                                        padding: '7px 18px', borderRadius: '999px', border: 'none',
-                                        cursor: 'pointer', fontSize: '13px', fontWeight: '600',
-                                        backgroundColor: tab === t ? '#3b3b3b' : 'transparent',
-                                        color: tab === t ? '#fff' : '#666', transition: 'all 0.18s',
-                                    }}>
-                                        {t === 'enrolled' ? `Enrolled (${enrolledCourses.length})` : 'All Courses'}
-                                    </button>
+                        {/* Search bar */}
+                        <div style={{ position: 'relative', marginBottom: '20px' }}>
+                            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#aaa' }}>🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search for a course..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{ width: '100%', padding: '12px 12px 12px 42px', borderRadius: '10px', border: '1.5px solid #e0e0e0', fontSize: '15px', backgroundColor: '#fff', boxSizing: 'border-box', outline: 'none' }}
+                            />
+                        </div>
+
+                        {/* Course list */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {displayList.length === 0 ? (
+                                <div style={{ textAlign: 'center', color: '#aaa', marginTop: '60px', fontSize: '15px' }}>
+                                    {tab === 'enrolled' ? 'You\'re not enrolled in any courses yet.' : 'No courses found.'}
+                                </div>
+                            ) : displayList.map(course => (
+                                <div key={course.courseId} style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+
+                                    {/* Thumbnail */}
+                                    <div style={{ width: '120px', height: '90px', borderRadius: '10px', flexShrink: 0, backgroundColor: '#e8e8e8', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {course.thumbnail
+                                            ? <img src={course.thumbnail} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            : <span style={{ fontSize: '32px' }}>📚</span>}
+                                    </div>
+
+                                    {/* Info */}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '17px', fontWeight: '700', color: '#111' }}>{course.title}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '999px', backgroundColor: course.inSession ? '#d4f5e9' : '#f0f0f0', color: course.inSession ? '#1a7a50' : '#888' }}>
+                                                {course.inSession ? '● In Session' : '○ Not in Session'}
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#666', lineHeight: 1.5 }}>{course.description}</p>
+                                        <div style={{ fontSize: '13px', color: '#777' }}>
+                                            <span style={{ marginRight: '16px' }}>👤 {course.instructor}</span>
+                                            <span style={{ fontWeight: '700', color: '#333', marginRight: '16px' }}>Times: {course.times}</span>
+                                            {course.level && <span style={{ marginRight: '16px' }}>📊 {course.level}</span>}
+                                            {course.price && <span>💰 {course.price}</span>}
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                                onClick={() => navigate(`/courses/${course.courseId}`)}
+                                                style={{ padding: '8px 16px', borderRadius: '8px', border: `1.5px solid ${PURPLE}`, backgroundColor: '#fff', color: PURPLE, fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                                            >
+                                                More Info
+                                            </button>
+                                            <button
+                                                onClick={() => enrolledIds.has(course.courseId) ? handleUnenroll(course.courseId) : handleEnroll(course.courseId)}
+                                                disabled={!!enrolling[course.courseId]}
+                                                style={{
+                                                    padding: '8px 16px', borderRadius: '8px', border: 'none',
+                                                    backgroundColor: enrolledIds.has(course.courseId) ? '#f0f0f0' : PURPLE,
+                                                    color: enrolledIds.has(course.courseId) ? '#888' : '#fff',
+                                                    fontWeight: '600', fontSize: '13px', cursor: 'pointer',
+                                                    opacity: enrolling[course.courseId] ? 0.6 : 1
+                                                }}
+                                            >
+                                                {enrolling[course.courseId] ? '...' : enrolledIds.has(course.courseId) ? 'Enrolled ✓' : 'Enroll'}
+                                            </button>
+                                        </div>
+                                        {course.inSession && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#e53935' }}>
+                                                Live <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#e53935' }}></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Right sidebar */}
+                    <div style={{ width: '260px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                        {/* Tab switcher */}
+                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: '4px' }}>
+                            {['all', 'enrolled'].map(t => (
+                                <button key={t} onClick={() => setTab(t)} style={{
+                                    flex: 1, padding: '9px 0', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                                    fontWeight: '700', fontSize: '13px',
+                                    backgroundColor: tab === t ? PURPLE : 'transparent',
+                                    color: tab === t ? '#fff' : '#666',
+                                    transition: 'all 0.18s',
+                                }}>
+                                    {t === 'enrolled' ? `Enrolled Courses` : 'All Courses'}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Filters */}
+                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                <span style={{ fontWeight: '700', fontSize: '16px', color: '#111' }}>Filters</span>
+                                <span style={{ fontSize: '18px', color: '#888' }}>≡</span>
+                            </div>
+
+                            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <span style={{ fontWeight: '600', fontSize: '14px', color: '#333' }}>Level</span>
+                                    <span style={{ fontSize: '12px', color: '#888' }}>∧</span>
+                                </div>
+                                {levelOptions.map(opt => (
+                                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
+                                        <input type="checkbox" checked={filters.level.includes(opt)} onChange={() => toggleFilter('level', opt)}
+                                            style={{ accentColor: PURPLE, width: '15px', height: '15px' }} />
+                                        {opt}
+                                    </label>
+                                ))}
+                            </div>
+
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <span style={{ fontWeight: '600', fontSize: '14px', color: '#333' }}>Class Time</span>
+                                    <span style={{ fontSize: '12px', color: '#888' }}>∧</span>
+                                </div>
+                                {timeOptions.map(opt => (
+                                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
+                                        <input type="checkbox" checked={filters.time.includes(opt)} onChange={() => toggleFilter('time', opt)}
+                                            style={{ accentColor: PURPLE, width: '15px', height: '15px' }} />
+                                        {opt}
+                                    </label>
                                 ))}
                             </div>
                         </div>
-
-                        {displayList.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: '#999', marginTop: '60px', fontSize: '15px' }}>
-                                {tab === 'enrolled'
-                                    ? 'You\'re not enrolled in any courses yet. Switch to "All Courses" to browse.'
-                                    : 'No courses available yet.'}
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                {displayList.map(course => (
-                                    <CourseCard
-                                        key={course.courseId}
-                                        course={course}
-                                        enrolled={enrolledIds.has(course.courseId)}
-                                        onEnroll={handleEnroll}
-                                        onUnenroll={handleUnenroll}
-                                        enrolling={!!enrolling[course.courseId]}
-                                        onClick={() => navigate(`/courses/${course.courseId}`)}
-                                    />
-                                ))}
-                            </div>
-                        )}
                     </div>
+
                 </div>
             </div>
         </div>
