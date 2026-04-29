@@ -125,7 +125,7 @@ function Posts(){
     }
     async function getUsername(uuid){
         try{
-            const usernameResponse = await fetch(`http://localhost:8080/username/${uuid}`)
+            const usernameResponse = await fetch(`${API}/username/${uuid}`)
             const usernameData = await usernameResponse.json()
             if (usernameData.mStatus!=="ok"){ alert("Problem grabbing username") }
             return usernameData.mData
@@ -156,7 +156,7 @@ function Posts(){
                 message: document.getElementById("newPost").value,
                 user_uuid: current_uuid
             };
-            const response = await fetch("http://localhost:8080/messages", {
+            const response = await fetch(`${API}/messages`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(postBody)
@@ -185,7 +185,7 @@ function Posts(){
         try{
             const current_uuid = await getCurrentUserId()
             const fileBody={ filename:fileUpload.name, msgId:msg_id, user_uuid:current_uuid }
-            const response=await fetch("http://localhost:8080/files",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fileBody) });
+            const response=await fetch(`${API}/files`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fileBody) });
             const fileData = await response.json()
             if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
@@ -200,7 +200,7 @@ function Posts(){
     async function sendEditCommentButton(msg_id,com_id){
         try{
             const comBody={ comment:document.getElementById(`editCommentText-${com_id}`).value }
-            const response = await fetch(`http://localhost:8080/put/comment/${com_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(comBody) })
+            const response = await fetch(`${API}/put/comment/${com_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(comBody) })
             const editCommentData = await response.json()
             if(editCommentData.mStatus!=="ok"){ alert("Editing comment failed. Try again later"); return }
             editCommentDom(msg_id,com_id,document.getElementById(`editCommentText-${com_id}`).value)
@@ -236,7 +236,7 @@ function Posts(){
                 subject:document.getElementById(`editTitle-${msg_id}`).value,
                 message:document.getElementById(`editMessage-${msg_id}`).value,
             };
-            const response = await fetch(`http://localhost:8080/messages/${msg_id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(putBody) });
+            const response = await fetch(`${API}/messages/${msg_id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(putBody) });
             const data = await response.json()
             if (data.mStatus!=="ok"){ alert("Edit post failed: "+data.mMessage); return }
             if(fileUpload){ editFileInTable(msg_id) }
@@ -260,7 +260,7 @@ function Posts(){
     async function editFileInTable(msg_id){
         try{
             const editFileBody={ filename:fileUpload.name }
-            const response=await fetch(`http://localhost:8080/files/${msg_id}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(editFileBody) });
+            const response=await fetch(`${API}/files/${msg_id}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(editFileBody) });
             const fileData = await response.json()
             if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
         }catch (error){ console.error(error.message) }
@@ -287,7 +287,7 @@ function Posts(){
             const current_uuid = await getCurrentUserId()
             const username = await getUsername(current_uuid)
             const commBody={ user_uuid:current_uuid, comment:document.getElementById(`newComment-${msg_id}`).value }
-            const res = await fetch(`http://localhost:8080/messages/${msg_id}/comments`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(commBody) })
+            const res = await fetch(`${API}/messages/${msg_id}/comments`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(commBody) })
             const data = await res.json()
             if(data.mStatus!=="ok"){ alert("Comment failed: "+data.mMessage); return }
             commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
@@ -307,7 +307,7 @@ function Posts(){
     async function upvoteButton(msg_id){
         try{
             const current_uuid = await getCurrentUserId()
-            const res = await fetch(`http://localhost:8080/vote_messages/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
+            const res = await fetch(`${API}/vote_messages/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data=await res.json()
             if(data.mStatus!=="ok"){ return }
             if(data.mData===0){ messageUpvoteDom(msg_id,-1) } else { messageUpvoteDom(msg_id,1) }
@@ -328,7 +328,7 @@ function Posts(){
     async function upvoteCommentButton(comment_id, msg_id){
         try{
             const current_uuid = await getCurrentUserId()
-            const res=await fetch(`http://localhost:8080/vote_comments/comment/${comment_id}/msg/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
+            const res=await fetch(`${API}/vote_comments/comment/${comment_id}/msg/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data = await res.json()
             if(data.mStatus!=="ok"){ alert("Upvoting comment failed. Try again later"); return }
             if(data.mData===0){ commentUpvoteDom(msg_id,comment_id,-1) } else { commentUpvoteDom(msg_id,comment_id,1) }
@@ -372,7 +372,7 @@ function Posts(){
 
     async function deleteCommentButton(msgId,commentId){
         try{
-            const deleteCommentResponse = await fetch(`http://localhost:8080/delete/comment/${commentId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
+            const deleteCommentResponse = await fetch(`${API}/delete/comment/${commentId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
             const deleteCommentData = await deleteCommentResponse.json()
             if(deleteCommentData.mStatus!=="ok"){ alert("Deleting comment failed. Try again later"); return }
             alert("Comment deleted")
@@ -394,7 +394,7 @@ function Posts(){
     async function deletePostButton(msgId, uuid){
         try{
             const deleteBody={ userUuid:uuid }
-            const deleteMessageResponse = await fetch(`http://localhost:8080/delete/message/${msgId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify(deleteBody) })
+            const deleteMessageResponse = await fetch(`${API}/delete/message/${msgId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify(deleteBody) })
             const deleteMessageData = await deleteMessageResponse.json()
             if (deleteMessageData.mStatus!=="ok"){ alert("Deleting post failed"); return }
             else if(deleteMessageData.mData!==null){
@@ -414,7 +414,7 @@ function Posts(){
     useEffect(()=>{
         async function getLikedPosts(){
             const userId = await getCurrentUserId()
-            fetch(`http://localhost:8080/likedmessages/${userId}`)
+            fetch(`${API}/likedmessages/${userId}`)
             .then(res=>res.json())
             .then(data=>{ setLikedPosts(data.mData) })
             .catch(err=>console.error("fetch error for liked posts: ",err))
@@ -427,7 +427,7 @@ function Posts(){
     useEffect(()=>{
         async function getLikedComments(){
             const userId = await getCurrentUserId()
-            fetch(`http://localhost:8080/likedcomments/${userId}`)
+            fetch(`${API}/likedcomments/${userId}`)
             .then(res=>res.json())
             .then(data=>{ setLikedComments(data.mData) })
             .catch(err=>console.error("fetch error for liked comments: ",err))
@@ -442,7 +442,7 @@ function Posts(){
         async function gatherMyPosts(){
             const userId = await getCurrentUserId()
             console.log("userId is: "+userId)
-            fetch(`http://localhost:8080/messages`)
+            fetch(`${API}/messages`)
             .then(res => res.json())
             .then(data => { setPosts(data.mData); })
             .catch(err => console.error("FETCH ERROR for getting posts:", err))
