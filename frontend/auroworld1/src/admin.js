@@ -6,9 +6,12 @@ import Header from './components/Header';
 import Card from './components/Card';
 
 function Admin(){
+    const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
+
     const navigate=useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
+    
     async function getCurrentUserId(){
         const { data: { user } ,error} = await supabase.auth.getUser()
         if(error){
@@ -61,7 +64,7 @@ function Admin(){
                 role: document.getElementById(`editRole-${username}`).value,
                 unique_id :unique_id
             }
-            const editUserRoleResponse = await fetch(`http://localhost:8080/change/role`,{
+            const editUserRoleResponse = await fetch(`${API}/change/role`,{
                 method:"PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(editBody)
@@ -122,7 +125,7 @@ function Admin(){
         async function gatherAllUsers(){
             const userId = await getCurrentUserId()
             console.log("userId is: "+userId)
-            fetch(`http://localhost:8080/get/allusers`)
+            fetch(`${API}/get/allusers`)
             .then(res => res.json())
             .then(data => {
                 console.log("FULL RESPONSE:", data)
@@ -156,9 +159,37 @@ function Admin(){
 
     const[usernameListQuery,setUsernameListQuery] = useState("")
 
+    const [userAttributes,setUserAttributes]=useState(null)
+    useEffect(()=>{
+        async function getUserAtts(){
+            try{
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { return; }
+                const uuidString = user.id
+                const res= await fetch(`${API}/userdata/${uuidString}`)
+                const data = await res.json()
+                //console.log("getUserAtts mData: "+data.mData.role)
+                setUserAttributes(data.mData)
+            }catch(error){
+                console.log(error.message)
+            }
+            return
+        }
+        getUserAtts()
+    },[])
+
+    if(userAttributes?.role!=="admin"){
+        return (
+             <div style={{ display: 'flex', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
+                <label>You do not have permission to view this page. 
+                </label>
+             </div>
+        )
+    }
+
 //height: '100vh',
 //${user.unique_id
-    return (
+    else return (
          <div style={{ display: 'flex', width: '100vw', margin: '0', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: '#111' }}>
             <Sidebar 
                 onMainpage={mainpageButton} 
@@ -226,6 +257,7 @@ function Admin(){
             </div>
 
         </div>
+        
     )
 }
 

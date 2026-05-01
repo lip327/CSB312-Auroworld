@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+//import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { GoogleLogin,googleLogout } from "@react-oauth/google";
+import { GoogleLogin} from "@react-oauth/google";
+//import { googleLogout } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
@@ -10,14 +11,16 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
+const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
+
 function Login(){
     const navigate = useNavigate();
     const { refreshUser } = useUser();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
-    function handleLogout(){
-        googleLogout()
-    }
+    // function handleLogout(){
+    //     googleLogout()
+    // }
     function signup(){
         navigate("/signup")
     }
@@ -43,7 +46,7 @@ function Login(){
         console.log("resetPasswordButton email: "+email)
 
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'http://localhost:3000/resetpass',
+            redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
         })
         if(error){
             alert("Problem sending reset password to your email. Try again")
@@ -67,6 +70,9 @@ function Login(){
             email: email,
             password: pass,
         });
+        if(data){
+
+        }
         if(error){
             console.log(error.message)
             if (error.message==="Invalid login credentials"){
@@ -74,7 +80,7 @@ function Login(){
             }
             return null
         }
-        console.log(data)
+        //console.log(data)
         await refreshUser();
         navigate("/posts")
 
@@ -89,7 +95,7 @@ function Login(){
             console.log(error, data)
 
             const googleAccountInfo = jwtDecode(creds)
-            const checkEmail = await fetch(`http://localhost:8080/user_email/${googleAccountInfo.email}`)
+            const checkEmail = await fetch(`${API}/user_email/${googleAccountInfo.email}`)
             const checkEmailRes = await checkEmail.json()
 
             if(checkEmailRes.mData!==true){
@@ -116,7 +122,7 @@ function Login(){
                         window.alert("Usernames must be between 5 and 15 characters inclusive. Please pick another")
                     }
                     else{
-                        const user_res =await fetch(`http://localhost:8080/user_username/${userInput}`)
+                        const user_res =await fetch(`${API}/user_username/${userInput}`)
                         const user_data = await user_res.json();
 
                         if(user_data.mData!==false){
@@ -138,7 +144,7 @@ function Login(){
 
                 console.log("accountInfo: ",accountInfo)
 
-                const response = await fetch("http://localhost:8080/auth/newuser", {
+                const response = await fetch(`${API}/auth/newuser`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(accountInfo)

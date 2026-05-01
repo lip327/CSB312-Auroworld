@@ -123,15 +123,34 @@ function Posts(){
         if(error){ return }
         else if(user){ return user.id }
     }
-    async function getUsername(uuid){
-        try{
-            const usernameResponse = await fetch(`${API}/username/${uuid}`)
-            const usernameData = await usernameResponse.json()
-            if (usernameData.mStatus!=="ok"){ alert("Problem grabbing username") }
-            return usernameData.mData
-        }catch(error){ console.log(error.message) }
-        return
-    }
+    // async function getUsername(uuid){
+    //     try{
+    //         const usernameResponse = await fetch(`${API}/username/${uuid}`)
+    //         const usernameData = await usernameResponse.json()
+    //         if (usernameData.mStatus!=="ok"){ alert("Problem grabbing username") }
+    //         return usernameData.mData
+    //     }catch(error){ console.log(error.message) }
+    //     return
+    // }
+
+    const [userAttributes,setUserAttributes]=useState(null)
+    useEffect(()=>{
+        async function getUserAtts(){
+            try{
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { return; }
+                const uuidString = user.id
+                const res= await fetch(`${API}/userdata/${uuidString}`)
+                const data = await res.json()
+                //console.log("getUserAtts mData: "+data.mData.role)
+                setUserAttributes(data.mData)
+            }catch(error){
+                console.log(error.message)
+            }
+            return
+        }
+        getUserAtts()
+    },[])
 
     function mainpageButton(){ navigate("/posts") }
     function coursesButton(){ navigate("/courses") }
@@ -147,10 +166,16 @@ function Posts(){
         document.getElementById("addPost").style.display="block";
     }
 
-    async function addPostButton(){
+    async function addPostButton(username){
+        //console.log("username: "+username)
+        if(!document.getElementById("newTitle").value || !document.getElementById("newPost").value){
+            alert("Title or caption aren't filled out")
+            return
+        }
+        //console.log("prevUrl: "+prevUrl)
         try{
             const current_uuid = await getCurrentUserId()
-            const username = await getUsername(current_uuid)
+            // const username = await getUsername(current_uuid)
             const postBody = {
                 subject: document.getElementById("newTitle").value,
                 message: document.getElementById("newPost").value,
@@ -166,14 +191,15 @@ function Posts(){
             if(fileUpload) { addFileToTable(data.mData.msgId) }
             testDomButton(
                 document.getElementById("newTitle").value, document.getElementById("newPost").value,
-                0, username, data.mData.msgId, []
+                0, username, data.mData.msgId, current_uuid, []
             )
+
         } catch(error){ console.error(error.message) }
         cancelPostButton();
     }
 
-    function testDomButton(title, message, upvote, username, msg_id, comments){
-        const newPost=[{ msgId:msg_id, subject:title, message:message, upvote:upvote, username:username, commentdata:comments }]
+    function testDomButton(title, message, upvote, username, msg_id, uuid,comments){
+        const newPost=[{ msgId:msg_id, subject:title, message:message, upvote:upvote, username:username, uuid:uuid,commentdata:comments }]
         setPosts((prevPosts)=>{ return [...prevPosts,...newPost] })
     }
 
@@ -189,8 +215,28 @@ function Posts(){
             const fileData = await response.json()
             if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
-            if(data){ console.log(data) } else { console.log(error.message) }
+            if(data){ 
+                console.log("data.path: "+data.path)
+                photoDom(msg_id,data.path) 
+                //console.log(data) 
+            } 
+            else { 
+                console.log(error.message) 
+            }
         }catch (error){ console.error(error.message) }
+    }
+    function photoDom(msgId,path) {
+        const { data } = supabase
+            .storage
+            .from('community_feed_file_upload')
+            .getPublicUrl(path)
+        if(data){
+            //console.log("publicUrl data: "+data.publicUrl)
+            setImageUrls(prev => ({
+                ...prev,
+                [msgId]: data.publicUrl
+            }));
+        }
     }
 
     function editCommentButton(com_id){
@@ -231,6 +277,10 @@ function Posts(){
     }
 
     async function sendEditPostButton(msg_id){
+        if(!document.getElementById(`editTitle-${msg_id}`).value || !document.getElementById(`editMessage-${msg_id}`).value ){
+            alert("Title or caption empty")
+            return
+        }
         try{
             const putBody={
                 subject:document.getElementById(`editTitle-${msg_id}`).value,
@@ -239,11 +289,24 @@ function Posts(){
             const response = await fetch(`${API}/messages/${msg_id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(putBody) });
             const data = await response.json()
             if (data.mStatus!=="ok"){ alert("Edit post failed: "+data.mMessage); return }
-            if(fileUpload){ editFileInTable(msg_id) }
+            //if(fileUpload){ editFileInTable(msg_id) }
             editDomButton(msg_id,document.getElementById(`editTitle-${msg_id}`).value,document.getElementById(`editMessage-${msg_id}`).value)
         }catch(error){ console.error(error.message) }
         cancelEditPostButton(msg_id);
     }
+    // function photoDom(msgId,path) {
+    //     const { data } = supabase
+    //         .storage
+    //         .from('community_feed_file_upload')
+    //         .getPublicUrl(path)
+    //     if(data){
+    //         console.log("publicUrl data: "+data.publicUrl)
+    //         setImageUrls(prev => ({
+    //             ...prev,
+    //             [msgId]: data.publicUrl
+    //         }));
+    //     }
+    // }
 
     function editDomButton(msgId,sub,msg){
         const updatedPost=posts.map((post)=>{
@@ -251,20 +314,26 @@ function Posts(){
             return post
         })
         setPosts(updatedPost)
+
+        // const updatedUrl = imageUrls.map((url,)=>{
+        //     if(url[msgId]===){}
+        //     return url
+        // })
+        // setImageUrls(updatedUrl)
     }
 
     function cancelEditPostButton(msg_id){
         document.getElementById(`editPost-${msg_id}`).style.display="none";
     }
 
-    async function editFileInTable(msg_id){
-        try{
-            const editFileBody={ filename:fileUpload.name }
-            const response=await fetch(`${API}/files/${msg_id}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(editFileBody) });
-            const fileData = await response.json()
-            if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
-        }catch (error){ console.error(error.message) }
-    }
+    // async function editFileInTable(msg_id){
+    //     try{
+    //         const editFileBody={ filename:fileUpload.name }
+    //         const response=await fetch(`${API}/files/${msg_id}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(editFileBody) });
+    //         const fileData = await response.json()
+    //         if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
+    //     }catch (error){ console.error(error.message) }
+    // }
 
     function commentButton(msg_id){
         const p = posts.find((item) => item.msgId === msg_id);
@@ -282,10 +351,10 @@ function Posts(){
         }
     }
 
-    async function addCommentButton(msg_id){
+    async function addCommentButton(msg_id,username){
         try{
             const current_uuid = await getCurrentUserId()
-            const username = await getUsername(current_uuid)
+            //const username = await getUsername(current_uuid)
             const commBody={ user_uuid:current_uuid, comment:document.getElementById(`newComment-${msg_id}`).value }
             const res = await fetch(`${API}/messages/${msg_id}/comments`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(commBody) })
             const data = await res.json()
@@ -441,7 +510,7 @@ function Posts(){
     useEffect(() => {
         async function gatherMyPosts(){
             const userId = await getCurrentUserId()
-            console.log("userId is: "+userId)
+            //console.log("userId is: "+userId)
             fetch(`${API}/messages`)
             .then(res => res.json())
             .then(data => { setPosts(data.mData); })
@@ -456,18 +525,26 @@ function Posts(){
     useEffect(() =>{
         async function loadImages(){
             if(!posts) return
-            const newUrls={}
+            const newUrls=[]
             for (const post of posts) {
                 try{
                     const { data } = supabase.storage.from('community_feed_file_upload').getPublicUrl(post.filepath);
                     newUrls[post.msgId] = data.publicUrl;
-                }catch(error){ console.log(error.message); newUrls[post.msgId]=null }
+                }catch(error){ 
+                    //console.log(error.message); 
+                    newUrls[post.msgId]=null 
+                }
             }
+            //console.log("newUrls: "+newUrls)
             setImageUrls(newUrls);
         }
         loadImages()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[posts])
+
+    // for (const u of imageUrls){
+    //     console.log("u: "+u)
+    // }
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
@@ -530,6 +607,9 @@ function Posts(){
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // console.log("userAttributes.role: "+userAttributes?.role)
+    // console.log("userAttributes.username: "+userAttributes?.username)
+
     return(
         <div style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'#E3C7E6', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'#111' }}>
             
@@ -578,7 +658,7 @@ function Posts(){
                                 <input type="text" id="newTitle" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', boxSizing:'border-box' }} />
                                 <textarea id="newPost" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'80px', boxSizing:'border-box' }}></textarea>
                                 <div style={{ display:'flex', gap:'10px' }}>
-                                    <Button onClick={addPostButton}>Send</Button>
+                                    <Button onClick={()=> addPostButton(userAttributes.username)}>Send</Button>
                                     <Button variant="secondary" onClick={cancelPostButton}>Cancel</Button>
                                 </div>
                             </Card>
@@ -606,12 +686,12 @@ function Posts(){
                                         <div style={{ fontWeight:'700', fontSize:'15px', color:'#111' }}>{post.username}</div>
                                         <div style={{ fontSize:'12px', color:'#aaa' }}>#{post.msgId}</div>
                                     </div>
-                                    {currentUserId && post.uuid === currentUserId && (
+                                    { (userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                         <button onClick={() => editPostButton(post.msgId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
                                             Edit <i className="fas fa-edit"></i>
                                         </button>
                                     )}
-                                    {currentUserId && post.uuid === currentUserId && (
+                                    {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                         <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ float:"right", background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
                                             Delete <i className="fa-solid fa-trash-can"></i>
                                         </button>
@@ -658,8 +738,8 @@ function Posts(){
                                         <h3 style={{ marginTop:0 }}>Edit Entry</h3>
                                         <label style={{ fontWeight:'bold' }}>Title</label>
                                         <img src={fileUpload} alt="" style={{ maxWidth:'100%', borderRadius:'8px' }}></img>
-                                        <input type="text" id={`editTitle-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', boxSizing:'border-box' }} />
-                                        <textarea id={`editMessage-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'80px', boxSizing:'border-box' }}></textarea>
+                                        <input type="text" defaultValue={post.subject} id={`editTitle-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', boxSizing:'border-box' }} />
+                                        <textarea id={`editMessage-${post.msgId}`} defaultValue={post.message} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'80px', boxSizing:'border-box' }}></textarea>
                                         <div style={{ display:'flex', gap:'10px' }}>
                                             <Button onClick={() => sendEditPostButton(post.msgId)}>Send</Button>
                                             <Button variant="secondary" onClick={() => cancelEditPostButton(post.msgId)}>Cancel</Button>
@@ -673,7 +753,7 @@ function Posts(){
                                         <label style={{ fontWeight:'bold' }}>Message</label>
                                         <textarea id={`newComment-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'60px', boxSizing:'border-box' }}></textarea>
                                         <div style={{ display:'flex', gap:'10px' }}>
-                                            <Button onClick={() => addCommentButton(post.msgId)}>Send</Button>
+                                            <Button onClick={() => addCommentButton(post.msgId,userAttributes.username)}>Send</Button>
                                             <Button variant="secondary" onClick={() => cancelCommentButton(post.msgId)}>Cancel</Button>
                                         </div>
                                     </Card>
@@ -703,12 +783,12 @@ function Posts(){
                                                                 <i className="fa-regular fa-thumbs-up"></i>
                                                             </button>
                                                         )}
-                                                        {currentUserId && comment.uuid=== currentUserId && (
+                                                        {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                                             <button onClick={()=>editCommentButton(comment.commentId)}>
                                                                 Edit <i className="fas fa-edit"></i>
                                                             </button>
                                                         )}
-                                                        {currentUserId && comment.uuid === currentUserId && (
+                                                        {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) &&(
                                                             <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>
                                                                 Delete <i className="fa-solid fa-trash-can"></i>
                                                             </button>

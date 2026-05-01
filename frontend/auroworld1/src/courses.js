@@ -4,15 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
-const supabase = createClient(
-    process.env.REACT_APP_SUPABASE_URL      || 'https://rduempiojxizkwwbzaml.supabase.co',
-    process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
-);
+const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 
 const PURPLE = '#6C63FF';
-const PURPLE_LIGHT = '#EDE9FF';
+//const PURPLE_LIGHT = '#EDE9FF';
 
 
 function Courses() {
@@ -25,6 +22,23 @@ function Courses() {
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState({ level: [], time: [] });
     const [showAddCourse, setShowAddCourse] = useState(false);
+
+    const[instructorList, setInstructorList]=useState([])
+
+    useEffect(()=>{
+        async function getInstructors(){
+            fetch(`${API}/all/instructors`)
+            .then(res => res.json())
+            .then(data => {
+                //console.log("FULL RESPONSE:", data)
+                //console.log("Instructor list mData:", data.mData)
+                setInstructorList(data.mData);
+            })
+            .catch(err => console.error("FETCH ERROR for getting instructors:", err))
+        }
+        getInstructors()
+
+    },[])
 
     const [newCourse, setNewCourse] = useState({
         title: '', description: '', instructor: '', times: '',
@@ -151,7 +165,7 @@ function Courses() {
                                 <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add a New Course</h3>
                                 {[
                                     { label: 'Course Title', key: 'title', type: 'text' },
-                                    { label: 'Instructor', key: 'instructor', type: 'text' },
+                                    // { label: 'Instructor', key: 'instructor', type: 'text' },
                                     { label: 'Times', key: 'times', type: 'text' },
                                     { label: 'Start Date', key: 'start_date', type: 'text' },
                                     { label: 'Link to Meeting', key: 'live_url', type: 'text' },
@@ -162,6 +176,14 @@ function Courses() {
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
                                     </div>
                                 ))}
+                                <div style={{ marginBottom: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor</label>
+                                    <select id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                                        {instructorList.map(instructor => (
+                                            <option key={instructor.unique_id} value={instructor.username}>{instructor.username}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div style={{ marginBottom: '12px' }}>
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Description</label>
                                     <textarea value={newCourse.description} onChange={e => setNewCourse(p => ({ ...p, description: e.target.value }))}
