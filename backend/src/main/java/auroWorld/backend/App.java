@@ -854,12 +854,6 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
-    // private static final class CreateCourseRequest{
-    //     public String title;
-    //     public String description;
-    //     public String instructor;
-
-    // }
     app.put("/change/role", ctx->{
         ctx.status(200);
         ctx.contentType("application/json");

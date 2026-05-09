@@ -511,10 +511,10 @@ public class Database{
 
                     MessageData msg = msgs.get(msgId);
 
-                    String name ="[unknown]";
-                    if (rs.getString("your_username")!=null){
-                        name=rs.getString("your_username");
-                    }
+                    // String name ="[unknown]";
+                    // if (rs.getString("your_username")!=null){
+                    //     name=rs.getString("your_username");
+                    // }
 
                     if(msg==null){
 
@@ -527,7 +527,8 @@ public class Database{
                             rs.getString("your_uuid"),
                             new ArrayList<>(),
                             rs.getString("file_path"),
-                            name
+                            //name
+                            rs.getString("your_username")
                             // rs.getString("first_name"),   // may be null if somehow missing
                             // rs.getString("last_name")
                         );
@@ -535,9 +536,9 @@ public class Database{
                     }
                     int commentId = rs.getInt("comment_id");
 
-                    if(rs.getString("comment_username")!=null){
-                        name=rs.getString("comment_username");
-                    }
+                    // if(rs.getString("comment_username")!=null){
+                    //     name=rs.getString("comment_username");
+                    // }
                     if (!rs.wasNull()) {
 
                         CommentData comm = new CommentData(
@@ -547,7 +548,7 @@ public class Database{
                             rs.getInt("comment_upvote"),
                             true,
                             rs.getString("comment_unique_id"),
-                            name
+                            rs.getString("comment_username")
                         );
                         msg.commentdata.add(comm);
                     }
