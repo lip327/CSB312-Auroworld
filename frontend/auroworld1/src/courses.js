@@ -41,7 +41,7 @@ function Courses() {
     },[])
 
     const [newCourse, setNewCourse] = useState({
-        title: '', description: '', instructor: '', times: '',
+        title: '', description: '', instructor: 'liamtest', times: '',
         start_date: '', level: 'Beginner', price: 'Free', live_url: ''
     });
 
@@ -106,14 +106,32 @@ function Courses() {
     }
 
     async function submitNewCourse() {
-        const { title, description, instructor, times, start_date, level, price, live_url } = newCourse;
+        const { title, description, instructor, times, 
+            start_date,  level, price, live_url 
+        } = newCourse;
+        console.log("title: "+title)
+        console.log("description: "+description)
+        console.log("instructor: "+instructor)
+        console.log("times: "+times)
+        console.log("start_date: "+start_date)
+        console.log("level: "+level)
+        console.log("price: "+price)
+        console.log("newCourse: "+newCourse)
+        // console.log("title: "+newCourse.title)
+        // console.log("description: "+newCourse.description)
+        // console.log("instructor: "+newCourse.instructor)
+        // console.log("times: "+newCourse.times)
+        // console.log("start_date: "+newCourse.start_date)
+        // console.log("level: "+newCourse.level)
+        // console.log("price: "+newCourse.price)
+        // console.log("live_url: "+newCourse.live_url)
         if (!title || !description || !instructor || !times || !start_date || !level || !price || !live_url) {
             alert('Please fill out all fields'); return;
         }
         try {
             const response = await fetch(`${API}/courses`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, description, instructor, times, startDate: start_date, level, price, live_url })
+                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url })
             });
             const data = await response.json();
             if (data.mStatus !== 'ok') { alert('Adding course failed: ' + data.mMessage); return; }
@@ -178,7 +196,7 @@ function Courses() {
                                 ))}
                                 <div style={{ marginBottom: '12px' }}>
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor</label>
-                                    <select id="instructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                                    <select id="instructor" value={newCourse.instructor} onChange={e => setNewCourse(p => ({ ...p, instructor: e.target.value }))} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
                                         {instructorList.map(instructor => (
                                             <option key={instructor.unique_id} value={instructor.username}>{instructor.username}</option>
                                         ))}

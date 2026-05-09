@@ -211,7 +211,6 @@ async function uploadNewMaterials(filename,unitId,courseId,filedata){
     }
     console.log("filename: "+filename)
     console.log("filedata: "+filedata)
-    console.log("fuck you")
     
     try{
         if(!(filedata) || filename==="No file chosen"){
@@ -227,7 +226,6 @@ async function uploadNewMaterials(filename,unitId,courseId,filedata){
             const videoData = await response.json();
             if(videoData.mStatus!=="ok"){
                 alert("Adding video failed: "+videoData.mMessage);
-                return;
             }
             return
         }
@@ -240,6 +238,7 @@ async function uploadNewMaterials(filename,unitId,courseId,filedata){
         }
         const videoBody={
             title:document.getElementById("videoTitle").value,
+            // eslint-disable-next-line
             filepath:'course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename
         }
         const response = await fetch(`${API}/course_units/unit/${unitId}`,{
@@ -253,6 +252,7 @@ async function uploadNewMaterials(filename,unitId,courseId,filedata){
             return;
         }
         //console.log("addVideo new video Id= "+videoData.mData)
+        // eslint-disable-next-line
         const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename, filedata)
         if(data){
             alert('Added video successfully.')
