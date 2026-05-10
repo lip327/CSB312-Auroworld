@@ -5,6 +5,8 @@ import Card from './components/Card';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function Signup(){
+    const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
+
     const navigate = useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
@@ -43,7 +45,7 @@ function Signup(){
         try{
             console.log("checking username valid")
 
-            const user_res =await fetch(`http://localhost:8080/user_username/${document.getElementById("username").value}`)
+            const user_res =await fetch(`${API}/user_username/${document.getElementById("username").value}`)
             const user_data = await user_res.json();
             console.log("Check user response:",user_data)
 
@@ -53,7 +55,7 @@ function Signup(){
             }
 
             console.log("checking email validity")
-            const email_res =await fetch(`http://localhost:8080/user_email/${document.getElementById("email").value}`)
+            const email_res =await fetch(`${API}/user_email/${document.getElementById("email").value}`)
             const email_data = await email_res.json();
             console.log("Check email response:",email_data)
 
@@ -84,7 +86,7 @@ function Signup(){
                 user_uuid:data.user.id
             }
 
-            const create_res=await fetch("http://localhost:8080/newuser",{
+            const create_res=await fetch(`${API}/newuser`,{
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(account_vals)
@@ -125,7 +127,7 @@ function Signup(){
                     username:document.getElementById("username").value,
                     user_uuid:user.id,
                 }
-                const res = await fetch("http://localhost:8080/profile_attributes",{
+                const res = await fetch(`${API}/profile_attributes`,{
                     method:"POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(profVals)
